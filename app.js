@@ -189,8 +189,8 @@ function renderLists(){
           <div class="item-name editable-item-name" data-id="${item.id}" data-section="${section}">${escapeHtml(item.name)}</div>
           <div class="item-amount ${positiveClass}" data-editable-amount data-id="${item.id}" data-section="${section}">$${remaining.toFixed(2)}</div>
           <div class="item-budget">/ $${Number(item.neededAmount !== undefined ? item.neededAmount : item.amount).toFixed(2)}</div>
+          ${metaHTML}
         </div>
-        ${metaHTML}
         <div class="item-actions">
           <button class="addSpendBtn" data-id="${item.id}" data-section="${section}">Spend</button>
         </div>
