@@ -39,6 +39,14 @@ function loadLocal(){
       }
     });
   });
+  // Initialize neededAmount for legacy items
+  Object.keys(state.items || {}).forEach(section=>{
+    (state.items[section]||[]).forEach(it=>{
+      if(it && it.neededAmount === undefined && section !== 'accounts'){
+        it.neededAmount = it.amount;
+      }
+    });
+  });
   const gid = localStorage.getItem(GIST_ID_KEY);
   const tok = localStorage.getItem(GIST_TOKEN_KEY);
   if(gid) $('gistId').value = gid;
@@ -95,7 +103,7 @@ function renderLists(){
         div.innerHTML = `
           <div class="item-info">
             <div class="item-name editable-item-name" data-id="${acc.id}" data-section="accounts">${escapeHtml(acc.name)}</div>
-            <div class="item-amount ${amountClass}">$${Number(acc.amount).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
+            <div class="item-amount ${amountClass}" data-editable-amount data-id="${acc.id}" data-section="accounts">$${Number(acc.amount).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
           </div>
         `;
         
@@ -179,8 +187,8 @@ function renderLists(){
       div.innerHTML = `
         <div class="item-info">
           <div class="item-name editable-item-name" data-id="${item.id}" data-section="${section}">${escapeHtml(item.name)}</div>
-          <div class="item-amount ${positiveClass}">$${remaining.toFixed(2)}</div>
-          <div class="item-budget">/ $${Number(item.amount).toFixed(2)}</div>
+          <div class="item-amount ${positiveClass}" data-editable-amount data-id="${item.id}" data-section="${section}">$${remaining.toFixed(2)}</div>
+          <div class="item-budget">/ $${Number(item.neededAmount !== undefined ? item.neededAmount : item.amount).toFixed(2)}</div>
         </div>
         ${metaHTML}
         <div class="item-actions">
@@ -196,6 +204,7 @@ function renderLists(){
 function computeTotals(){
   const sum = s => state.items[s].reduce((a,b)=>{
     const totalSpent = (b.spent||[]).reduce((x,y)=>x+Number(y.amount||0),0);
+    // Use item.amount (current amount) for total calculation, as it already reflects spent.
     return a + (Number(b.amount||0) - totalSpent);
   }, 0);
   const totalBudget = sum('budget');
@@ -234,7 +243,7 @@ function render(){ renderBalances(); renderLists(); computeTotals(); }
 function escapeHtml(text){ return (text+'').replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\'":"&#39;","\"":"&quot;"})[c]); }
 
 // Actions
-function addItem({name,amount,due,section}){
+function addItem({name,amount,neededAmount,due,section}){
   if(section === 'accounts'){
     // accounts have different structure: name, amount, isPositive
     state.accounts = state.accounts || [];
@@ -242,13 +251,14 @@ function addItem({name,amount,due,section}){
   } else {
     state.items = state.items || {};
     state.items[section] = state.items[section] || [];
-    state.items[section].push({id:uid(),name,amount: parseFloat(amount)||0,due,spent:[]});
+    const finalNeededAmount = neededAmount !== undefined ? parseFloat(neededAmount) : parseFloat(amount);
+    state.items[section].push({id:uid(),name,amount: parseFloat(amount)||0,neededAmount: finalNeededAmount||0,due,spent:[]});
   }
   saveLocal(); render();
   autosaveToGist();
 }
 
-function updateItem(section, id, {name, amount, due}){
+function updateItem(section, id, {name, amount, neededAmount, due}){
   if(section === 'accounts'){
     const item = state.accounts.find(a=>a.id===id);
     if(item){
@@ -261,6 +271,7 @@ function updateItem(section, id, {name, amount, due}){
     if(item){
       item.name = name;
       item.amount = amount;
+      item.neededAmount = neededAmount !== undefined ? parseFloat(neededAmount) : parseFloat(amount);
       item.due = due;
     }
   }
@@ -315,6 +326,21 @@ function setupUI(){
           showSpendingForm(section, id);
         } else if(target.classList.contains('editable-item-name')){
           showItemForm(section, id);
+        }
+      } else {
+        const editableAmountTarget = e.target.closest('[data-editable-amount]');
+        if (editableAmountTarget) {
+          const id = editableAmountTarget.dataset.id;
+          const section = editableAmountTarget.dataset.section;
+          let currentAmount;
+          if (section === 'accounts') {
+            const account = state.accounts.find(a => a.id === id);
+            currentAmount = account ? account.amount : 0;
+          } else {
+            const item = state.items[section].find(i => i.id === id);
+            currentAmount = item ? item.amount : 0;
+          }
+          showEditAmountForm(section, id, currentAmount);
         }
       }
     });
@@ -434,6 +460,14 @@ async function loadFromGist(silent = false){
   const parsed = JSON.parse(content);
   // remove legacy transactions from loaded data
   state = stripTransactionsFromState(parsed);
+  // Initialize neededAmount for legacy items loaded from gist
+  Object.keys(state.items || {}).forEach(section=>{
+    (state.items[section]||[]).forEach(it=>{
+      if(it && it.neededAmount === undefined && section !== 'accounts'){
+        it.neededAmount = it.amount;
+      }
+    });
+  });
   saveLocal(); render();
         localStorage.setItem(GIST_ID_KEY, gistId); if(token) localStorage.setItem(GIST_TOKEN_KEY, token);
         setStatus('Loaded data from gist');
@@ -526,6 +560,66 @@ function showSpendingForm(section, itemId){
   overlay.addEventListener('click', (e)=>{ if(e.target === overlay) cleanup(); });
 }
 
+function updateItemAmountAndResetSpent(section, id, newAmount){
+  if(section === 'accounts'){
+    const item = state.accounts.find(a=>a.id===id);
+    if(item){
+      item.amount = newAmount;
+    }
+  } else {
+    const item = state.items[section].find(i=>i.id===id);
+    if(item){
+      item.amount = newAmount;
+      item.spent = []; // Reset spent history
+    }
+  }
+  saveLocal(); render();
+  autosaveToGist();
+}
+
+// Show a modal/form for editing an item's amount
+function showEditAmountForm(section, itemId, currentAmount) {
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  const modal = document.createElement('div');
+  modal.className = 'modal';
+
+  const title = `Edit Amount for ${section.slice(0, -1)}`;
+
+  modal.innerHTML = `
+    <h3>${title}</h3>
+    <label>Current Amount<br><input id="_edit_amount" type="number" step="0.01" placeholder="0.00" value="${Number(currentAmount).toFixed(2)}"></label>
+    <div class="actions">
+      <button id="_edit_amount_cancel">Cancel</button>
+      <button id="_edit_amount_ok">Save</button>
+    </div>
+  `;
+  overlay.appendChild(modal);
+  document.body.appendChild(overlay);
+
+  setTimeout(() => document.getElementById('_edit_amount').focus(), 20);
+
+  function cleanup() {
+    overlay.remove();
+  }
+
+  document.getElementById('_edit_amount_cancel').addEventListener('click', () => cleanup());
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) cleanup();
+  });
+
+  document.getElementById('_edit_amount_ok').addEventListener('click', () => {
+    const newAmount = parseFloat(document.getElementById('_edit_amount').value);
+
+    if (isNaN(newAmount) || newAmount < 0) {
+      alert('Enter a valid positive amount');
+      return;
+    }
+
+    updateItemAmountAndResetSpent(section, itemId, newAmount);
+    cleanup();
+  });
+}
 function showItemForm(section, itemId = null) {
   const isEdit = itemId !== null;
   let item;
@@ -570,7 +664,8 @@ function showItemForm(section, itemId = null) {
   modal.innerHTML = `
     <h3>${title}</h3>
     <label>Name<br><input id="_item_name" type="text" placeholder="Name" value="${isEdit && item ? escapeHtml(item.name) : ''}"></label>
-    <label>Amount<br><input id="_item_amount" type="number" step="0.01" placeholder="0.00" value="${isEdit && item ? Number(item.amount).toFixed(2) : ''}"></label>
+    <label>Current Amount<br><input id="_item_amount" type="number" step="0.01" placeholder="0.00" value="${isEdit && item ? Number(item.amount).toFixed(2) : ''}"></label>
+    ${section !== 'accounts' ? `<label>Needed Amount<br><input id="_item_needed_amount" type="number" step="0.01" placeholder="0.00" value="${isEdit && item && item.neededAmount ? Number(item.neededAmount).toFixed(2) : ''}"></label>` : ''}
     ${dueControlHtml}
     <div class="actions">
       ${isEdit ? '<button id="_item_delete" class="delBtn">Delete</button>' : ''}
@@ -604,9 +699,10 @@ function showItemForm(section, itemId = null) {
   document.getElementById('_item_ok').addEventListener('click', () => {
     const name = document.getElementById('_item_name').value.trim();
     const amount = parseFloat(document.getElementById('_item_amount').value);
+    const neededAmount = section !== 'accounts' ? parseFloat(document.getElementById('_item_needed_amount').value) : undefined;
 
-    if (!name || isNaN(amount)) {
-      alert('Enter name and amount');
+    if (!name || isNaN(amount) || (section !== 'accounts' && isNaN(neededAmount))) {
+      alert('Enter name and valid amounts');
       return;
     }
 
@@ -627,15 +723,15 @@ function showItemForm(section, itemId = null) {
     }
 
     if (isEdit) {
-      updateItem(section, itemId, { name, amount, due });
+      updateItem(section, itemId, { name, amount, neededAmount, due });
     } else {
-      addItem({ name, amount, due, section });
+      addItem({ name, amount, neededAmount, due, section });
     }
 
     cleanup();
   });
 }
 
-  // Init
+// Init
   setupUI();
   loadFromGist(true);

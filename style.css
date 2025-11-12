@@ -2,7 +2,7 @@
 *{box-sizing:border-box}
 html,body{}
 
-.container{max-width:1100px;margin:10px auto;padding:10px}
+.container{margin:10px auto;padding:10px}
 .top{display:flex;gap:20px;align-items:flex-start;flex-wrap:wrap;justify-content:center}
 .top h1{margin:0 0 8px 0;font-size:28px}
 .balances{display:flex;gap:12px;align-items:stretch;flex-wrap:wrap;justify-content:center}
@@ -46,7 +46,7 @@ html,body{}
 .lists{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-top:5px}
 .list{background:rgba(255,255,255,0.02);padding:12px;border-radius:10px;min-height:140px}
 .list h2{margin:0 0 8px 0;display:flex;align-items:center;justify-content:space-between}
-.list h2 .addItemSectionBtn{background:transparent;border:1px solid rgba(255,255,255,0.04);color:var(--accent);padding:4px 8px;border-radius:8px;cursor:pointer;font-size:larger}
+.list h2 .addItemSectionBtn{background:transparent;border:2px solid rgba(255,255,255,0.04);color:var(--accent);padding:4px 8px;border-radius:8px;cursor:pointer;font-size:larger}
 
 .item{
   display:grid;
@@ -77,6 +77,8 @@ html,body{}
   white-space: nowrap;
   grid-column: 1;
   grid-row: 1;
+  border: 2px solid rgba(255,255,255,0.04);
+  border-radius: 10px;
 }
 
 .item .item-amount {
@@ -87,6 +89,8 @@ html,body{}
   grid-row: 1;
   justify-self: end;
   padding: 5px;
+  border: 2px solid rgba(255,255,255,0.04);
+  border-radius: 10px;
 }
 
 .item .item-budget {
@@ -112,7 +116,7 @@ html,body{}
 
 .item .meta{color:var(--muted);font-size:12px}
 .item button{background:transparent;border:none;color:var(--muted);cursor:pointer;font-size:12px;padding:2px 2px;white-space:nowrap}
-.item .addSpendBtn{font-weight:900;font-size: inherit;border: 1px solid var(--border-color);background: #25282f;color: #989898;border-radius: 10px;padding: 5px 8px;}
+.item .addSpendBtn{font-weight:900;font-size: inherit;border: 2px solid rgba(255,255,255,0.04);background: #25282f;color: #989898;border-radius: 10px;padding: 5px 8px;}
 .item .editBtn{font-weight:900;font-size: inherit;border: 1px solid var(--border-color);background: var(--surface-color);color: var(--accent);;border-radius: 10px;padding: 5px 8px;}
 .item .delBtn{color:#ff8b8b}
 
@@ -242,7 +246,7 @@ body {
 
 .icon-btn {
     appearance: none;
-    border: 1px solid var(--border-color);
+    border: 2px solid rgba(255,255,255,0.04);
     background: #25282f;
     color: #989898;
     font-weight: 900;
