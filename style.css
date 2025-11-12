@@ -97,6 +97,10 @@ html,body{}
   font-size: 13px;
   color: var(--muted);
   opacity: 0.8;
+  grid-column: 2;
+  grid-row: 2;
+  justify-self: end;
+  margin-right: 10px;
 }
 
 .item .item-actions {

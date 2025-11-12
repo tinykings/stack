@@ -664,7 +664,7 @@ function showItemForm(section, itemId = null) {
   modal.innerHTML = `
     <h3>${title}</h3>
     <label>Name<br><input id="_item_name" type="text" placeholder="Name" value="${isEdit && item ? escapeHtml(item.name) : ''}"></label>
-    <label>Current Amount<br><input id="_item_amount" type="number" step="0.01" placeholder="0.00" value="${isEdit && item ? Number(item.amount).toFixed(2) : ''}"></label>
+    ${!isEdit ? `<label>Current Amount<br><input id="_item_amount" type="number" step="0.01" placeholder="0.00" value="${isEdit && item ? Number(item.amount).toFixed(2) : ''}"></label>` : ''}
     ${section !== 'accounts' ? `<label>Needed Amount<br><input id="_item_needed_amount" type="number" step="0.01" placeholder="0.00" value="${isEdit && item && item.neededAmount ? Number(item.neededAmount).toFixed(2) : ''}"></label>` : ''}
     ${dueControlHtml}
     <div class="actions">
@@ -698,7 +698,7 @@ function showItemForm(section, itemId = null) {
 
   document.getElementById('_item_ok').addEventListener('click', () => {
     const name = document.getElementById('_item_name').value.trim();
-    const amount = parseFloat(document.getElementById('_item_amount').value);
+    const amount = !isEdit ? parseFloat(document.getElementById('_item_amount').value) : item.amount;
     const neededAmount = section !== 'accounts' ? parseFloat(document.getElementById('_item_needed_amount').value) : undefined;
 
     if (!name || isNaN(amount) || (section !== 'accounts' && isNaN(neededAmount))) {
