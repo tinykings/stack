@@ -142,6 +142,7 @@ html,body{}
 
 .asset { color: #b4ffb4; }
 .liability { color: #ffb4b4; }
+.positive-amount { color: #b4ffb4; }
 
 body {
     --background-color: #1e2129;

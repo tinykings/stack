@@ -138,6 +138,7 @@ function renderLists(){
       item.spent = item.spent || [];
       const totalSpent = item.spent.reduce((a,b)=>a+Number(b.amount||0),0);
       const remaining = Number(item.amount) - totalSpent;
+      const positiveClass = remaining > 0 ? 'positive-amount' : '';
 
       // Build due/schedule display
       let dueDisplay = '-';
@@ -178,7 +179,7 @@ function renderLists(){
       div.innerHTML = `
         <div class="item-info">
           <div class="item-name editable-item-name" data-id="${item.id}" data-section="${section}">${escapeHtml(item.name)}</div>
-          <div class="item-amount">$${remaining.toFixed(2)}</div>
+          <div class="item-amount ${positiveClass}">$${remaining.toFixed(2)}</div>
           <div class="item-budget">/ $${Number(item.amount).toFixed(2)}</div>
         </div>
         ${metaHTML}
