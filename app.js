@@ -94,11 +94,8 @@ function renderLists(){
         
         div.innerHTML = `
           <div class="item-info">
-            <div class="item-name">${escapeHtml(acc.name)}</div>
+            <div class="item-name editable-item-name" data-id="${acc.id}" data-section="accounts">${escapeHtml(acc.name)}</div>
             <div class="item-amount ${amountClass}">$${Number(acc.amount).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
-          </div>
-          <div class="item-actions">
-            <button class="editBtn" data-id="${acc.id}" data-section="accounts">Edit</button>
           </div>
         `;
         
@@ -180,14 +177,13 @@ function renderLists(){
 
       div.innerHTML = `
         <div class="item-info">
-          <div class="item-name">${escapeHtml(item.name)}</div>
+          <div class="item-name editable-item-name" data-id="${item.id}" data-section="${section}">${escapeHtml(item.name)}</div>
           <div class="item-amount">$${remaining.toFixed(2)}</div>
           <div class="item-budget">/ $${Number(item.amount).toFixed(2)}</div>
         </div>
         ${metaHTML}
         <div class="item-actions">
           <button class="addSpendBtn" data-id="${item.id}" data-section="${section}">Spend</button>
-          <button class="editBtn" data-id="${item.id}" data-section="${section}">Edit</button>
         </div>
       `;
 
@@ -310,11 +306,13 @@ function setupUI(){
 
   document.querySelectorAll('.list-items').forEach(container=>{
     container.addEventListener('click', e=>{
-      if(e.target.tagName === 'BUTTON'){
-        const id = e.target.dataset.id; const section = e.target.dataset.section;
-        if(e.target.classList.contains('addSpendBtn')){
+      const target = e.target.closest('.editable-item-name, .addSpendBtn');
+      if(target){
+        const id = target.dataset.id;
+        const section = target.dataset.section;
+        if(target.classList.contains('addSpendBtn')){
           showSpendingForm(section, id);
-        } else if(e.target.classList.contains('editBtn')){
+        } else if(target.classList.contains('editable-item-name')){
           showItemForm(section, id);
         }
       }
