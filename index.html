@@ -18,7 +18,8 @@
 <body>
   <main class="container">
     <header class="top">
-      <div class="last-updated"><span id="last-updated-footer"></span></div>
+      <div class="last-updated"><span id="last-updated-footer"></span>
+      <div id="last-refresh-time" class="last-refresh-time"></div></div>
 
       <section class="balances">
         <div id="accountsList" class="accounts-section"></div>
@@ -51,7 +52,6 @@
             <div class="available-amount">
                 <span id="available">$0.00</span>
             </div>
-
         </div>
         <div class="footer-right">
             <button id="sync-btn" class="icon-btn" title="Sync" aria-label="Sync">Sync</button>
@@ -71,7 +71,7 @@
           </div>
           <div id="status" class="status"></div>
         </div>
-        <small>Store gist id & token locally. Save data file in gist as `budget-data.json`.</small>
+        <small>Data is stored for this device locally. If you want to sync between devices create a gist called budget-data.json and enter the gist id and access token with gist modify rights and save.</small>
         <div class="actions">
             <button id="gist-modal-close">Close</button>
         </div>

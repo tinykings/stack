@@ -302,6 +302,16 @@ function addSpending(section, itemId, spendName, spendAmount){
   autosaveToGist();
 }
 
+function updateLastRefreshTime() {
+  const now = new Date();
+  const options = { year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', minute: 'numeric', second: 'numeric' };
+  const formattedDateTime = now.toLocaleDateString(undefined, options);
+  const lastRefreshTimeEl = $('last-refresh-time');
+  if (lastRefreshTimeEl) {
+    lastRefreshTimeEl.textContent = `-${formattedDateTime}-`;
+  }
+}
+
 // UI wiring
 function setupUI(){
   loadLocal(); render();
@@ -379,8 +389,10 @@ function setupUI(){
     refreshBtnFooter.addEventListener('click', e => {
       e.preventDefault();
       location.reload();
+      updateLastRefreshTime(); // Update time on refresh button click
     });
   }
+  updateLastRefreshTime(); // Initial call on page load
 }
 
 // Gist API
