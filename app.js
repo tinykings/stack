@@ -298,8 +298,7 @@ function addSpending(section, itemId, spendName, spendAmount){
   // record meta for UI
   state._lastUpdated = now;
   state._lastSpend = { section, itemId, name: spendName, amount: spendAmount, date: now, itemName: item.name };
-  saveLocal(); render();
-  autosaveToGist();
+  saveLocal();
 }
 
 function updateLastRefreshTime() {
@@ -565,7 +564,9 @@ function showSpendingForm(section, itemId){
       }
     }
 
-    render(); autosaveToGist(); cleanup();
+    render();
+    autosaveToGist();
+    cleanup();
   });
 
   // close modal on overlay click (but not when clicking inside modal)
