@@ -172,13 +172,13 @@ function renderLists(){
       if(item.spent.length > 0){
         const mostRecent = item.spent[item.spent.length - 1];
         metaHTML = `
-          <div class="item-meta-row">
+          <div class="item-meta-row view-history" data-id="${item.id}" data-section="${section}">
             <span class="meta">${escapeHtml(dueDisplay)} • ${escapeHtml(mostRecent.name)} (-$${Number(mostRecent.amount).toFixed(2)})</span>
           </div>
         `;
       } else {
         metaHTML = `
-          <div class="item-meta-row">
+          <div class="item-meta-row" data-id="${item.id}" data-section="${section}">
             <span class="meta">${escapeHtml(dueDisplay)}</span>
           </div>
         `;
@@ -327,7 +327,7 @@ function setupUI(){
 
   document.querySelectorAll('.list-items').forEach(container=>{
     container.addEventListener('click', e=>{
-      const target = e.target.closest('.editable-item-name, .addSpendBtn');
+      const target = e.target.closest('.editable-item-name, .addSpendBtn, .view-history');
       if(target){
         const id = target.dataset.id;
         const section = target.dataset.section;
@@ -335,6 +335,8 @@ function setupUI(){
           showSpendingForm(section, id);
         } else if(target.classList.contains('editable-item-name')){
           showItemForm(section, id);
+        } else if (target.classList.contains('view-history')) {
+          showSpendHistory(section, id);
         }
       } else {
         const editableAmountTarget = e.target.closest('[data-editable-amount]');
@@ -749,6 +751,44 @@ function showItemForm(section, itemId = null) {
     }
 
     cleanup();
+  });
+}
+
+function showSpendHistory(section, itemId) {
+  const item = state.items[section].find(i => i.id === itemId);
+  if (!item || !item.spent || item.spent.length === 0) {
+    return;
+  }
+
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  const modal = document.createElement('div');
+  modal.className = 'modal';
+
+  const title = `Spend History for ${escapeHtml(item.name)}`;
+  let historyHtml = '<ul>';
+  item.spent.forEach(spend => {
+    historyHtml += `<li>${escapeHtml(spend.name)} - $${Number(spend.amount).toFixed(2)} on ${new Date(spend.date).toLocaleDateString()}</li>`;
+  });
+  historyHtml += '</ul>';
+
+  modal.innerHTML = `
+    <h3>${title}</h3>
+    ${historyHtml}
+    <div class="actions">
+      <button id="_history_close">Close</button>
+    </div>
+  `;
+  overlay.appendChild(modal);
+  document.body.appendChild(overlay);
+
+  function cleanup() {
+    overlay.remove();
+  }
+
+  document.getElementById('_history_close').addEventListener('click', () => cleanup());
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) cleanup();
   });
 }
 
