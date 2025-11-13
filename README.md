@@ -10,5 +10,6 @@
 <h4 align="center">
 Local browser storage is used, or a Gist can be created for sync between devices. 
 
-If using Gist, you also need to create a personal access token (classic), with Gist access.
+If using Gist, you also need to create a personal access token (classic), with Gist access, enter details under Sync. Changes are saved to the Gist automatically and are retrieved on page refresh.
 </h4>
+
