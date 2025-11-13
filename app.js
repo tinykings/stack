@@ -655,7 +655,7 @@ function showItemForm(section, itemId = null) {
   let dueControlHtml = '';
   if (section === 'accounts') {
     const isChecked = isEdit ? item.isPositive : true;
-    dueControlHtml = `<label><input id="_item_due" type="checkbox" ${isChecked ? 'checked' : ''}> Asset (unchecked=credit)</label>`;
+    dueControlHtml = `<label><input id="_item_due" type="checkbox" ${isChecked ? 'checked' : ''}> Asset (unchecked=debt)</label>`;
   } else if (section === 'budget') {
     const selected = isEdit && item && item.due ? item.due.value : 'every-month';
     dueControlHtml = `
@@ -747,3 +747,4 @@ function showItemForm(section, itemId = null) {
 // Init
   setupUI();
   loadFromGist(true);
+
