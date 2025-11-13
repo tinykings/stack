@@ -629,8 +629,15 @@ function showEditAmountForm(section, itemId, currentAmount) {
       return;
     }
 
-    updateItemAmountAndResetSpent(section, itemId, newAmount);
-    cleanup();
+    if (['budget', 'bills', 'goals'].includes(section)) {
+      if (confirm('This will clear the transaction history for the item and start with the new amount. Are you sure?')) {
+        updateItemAmountAndResetSpent(section, itemId, newAmount);
+        cleanup();
+      }
+    } else {
+      updateItemAmountAndResetSpent(section, itemId, newAmount);
+      cleanup();
+    }
   });
 }
 function showItemForm(section, itemId = null) {
