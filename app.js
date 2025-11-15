@@ -156,7 +156,12 @@ function renderLists(){
       item.spent = item.spent || [];
       const totalSpent = item.spent.reduce((a,b)=>a+Number(b.amount||0),0);
       const remaining = Number(item.amount) - totalSpent;
-      const positiveClass = remaining > 0 ? 'positive-amount' : '';
+      let amountClass = '';
+      if (remaining > 0) {
+        amountClass = 'positive-amount';
+      } else if (remaining < 0) {
+        amountClass = 'liability';
+      }
 
       // Build due/schedule display
       let dueDisplay = '-';
@@ -183,7 +188,7 @@ function renderLists(){
         const mostRecent = item.spent[item.spent.length - 1];
         metaHTML = `
           <div class="item-meta-row" data-id="${item.id}" data-section="${section}">
-            <span class="meta">${escapeHtml(dueDisplay)} • ${escapeHtml(mostRecent.name)} (-$${Number(mostRecent.amount).toFixed(2)})</span>
+            <span class="meta">${escapeHtml(dueDisplay)} • ${escapeHtml(mostRecent.name)} (-${Number(mostRecent.amount).toFixed(2)})</span>
           </div>
         `;
       } else {
@@ -197,8 +202,8 @@ function renderLists(){
       div.innerHTML = `
         <div class="item-info">
           <div class="item-name editable-item-name" data-id="${item.id}" data-section="${section}">${escapeHtml(item.name)}</div>
-          <div class="item-amount ${positiveClass}" data-editable-amount data-id="${item.id}" data-section="${section}">$${remaining.toFixed(2)}</div>
-          <div class="item-budget">/ $${Number(item.neededAmount !== undefined ? item.neededAmount : item.amount).toFixed(2)}</div>
+          <div class="item-amount ${amountClass}" data-editable-amount data-id="${item.id}" data-section="${section}">${remaining.toFixed(2)}</div>
+          <div class="item-budget">/ ${Number(item.neededAmount !== undefined ? item.neededAmount : item.amount).toFixed(2)}</div>
           ${metaHTML}
         </div>
         <div class="item-actions">
