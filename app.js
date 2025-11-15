@@ -125,10 +125,20 @@ function renderLists(){
         const na = (a.name||'').toLowerCase(); const nb = (b.name||'').toLowerCase();
         return na.localeCompare(nb);
       }
-      // bills: by day-of-month (due.type === 'day')
-      if(section === 'bills'){
-        const da = (a.due && a.due.type==='day') ? Number(a.due.value) : 99;
-        const db = (b.due && b.due.type==='day') ? Number(b.due.value) : 99;
+      // bills: by day-of-month, starting from today
+      if (section === 'bills') {
+        const today = new Date().getDate();
+        const getSortableDay = (item) => {
+          if (item.due && item.due.type === 'day') {
+            const day = Number(item.due.value);
+            // If the day has passed this month, treat it as "next month" for sorting purposes
+            return day < today ? day + 31 : day;
+          }
+          // Place items without a valid due day at the end
+          return 999;
+        };
+        const da = getSortableDay(a);
+        const db = getSortableDay(b);
         return da - db;
       }
       // goals: by date
