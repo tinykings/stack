@@ -214,8 +214,9 @@ function renderLists(){
 function computeTotals(){
   const sum = s => state.items[s].reduce((a,b)=>{
     const totalSpent = (b.spent||[]).reduce((x,y)=>x+Number(y.amount||0),0);
-    // Use item.amount (current amount) for total calculation, as it already reflects spent.
-    return a + (Number(b.amount||0) - totalSpent);
+    const remaining = Number(b.amount||0) - totalSpent;
+    // Only add positive remaining amounts to the total. Negative amounts are for tracking only.
+    return a + (remaining > 0 ? remaining : 0);
   }, 0);
   const totalBudget = sum('budget');
   const totalBills = sum('bills');
@@ -250,7 +251,7 @@ function computeTotals(){
 
 function render(){ renderBalances(); renderLists(); computeTotals(); }
 
-function escapeHtml(text){ return (text+'').replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\'":"&#39;","\"":"&quot;"})[c]); }
+function escapeHtml(text){ return (text+'').replace(/[&<>"]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;","\"":"&quot;"})[c]); }
 
 // Actions
 function addItem({name,amount,neededAmount,due,section}){
@@ -775,4 +776,3 @@ function showItemForm(section, itemId = null) {
 // Init
   setupUI();
   loadFromGist(true);
-
