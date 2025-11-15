@@ -118,7 +118,7 @@ html,body{}
   justify-self: start;
 }
 
-.item .meta{color:var(--muted);font-size:12px}
+.item .meta{color:var(--muted);font-size:13px}
 .item button{background:transparent;border:none;color:var(--muted);cursor:pointer;font-size:12px;padding:2px 2px;white-space:nowrap}
 .item .addSpendBtn{font-weight:900;font-size: inherit;border: 2px solid rgba(255,255,255,0.04);background: #25282f;color: #989898;border-radius: 10px;padding: 5px 8px;}
 .item .editBtn{font-weight:900;font-size: inherit;border: 1px solid var(--border-color);background: var(--surface-color);color: var(--accent);;border-radius: 10px;padding: 5px 8px;}
