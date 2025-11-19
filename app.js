@@ -23,58 +23,39 @@ function loadLocal(){
     try{ state = JSON.parse(raw); }
     catch(e){ console.warn('Invalid local data', e); }
   }
-  // strip any legacy transactions array that may exist in stored state
-  state = stripTransactionsFromState(state);
-  // normalize legacy `due` values: if due is a plain date string, keep as {type:'date', value: 'YYYY-MM-DD'}
-  Object.keys(state.items || {}).forEach(section=>{
-    (state.items[section]||[]).forEach(it=>{
-      if(it && it.due && typeof it.due === 'string'){
-        // ISO date? YYYY-MM-DD
-        if(/^\d{4}-\d{2}-\d{2}$/.test(it.due)){
-          it.due = { type: 'date', value: it.due };
-        } else {
-          // leave simple strings as-is (backward compatible)
-          // e.g., '-' or empty
-        }
+  if (state.items) {
+    Object.keys(state.items).forEach(section=>{
+      if (state.items[section + '_lastAction'] === undefined) {
+        state.items[section + '_lastAction'] = null;
+      }
+      if (Array.isArray(state.items[section])) { // Check if it's an array of items
+        (state.items[section]||[]).forEach(it=>{
+          if(it && it.neededAmount === undefined && section !== 'accounts'){
+            it.neededAmount = it.amount;
+          }
+          if(it && it.due && typeof it.due === 'string'){
+            // ISO date? YYYY-MM-DD
+            if(/^\d{4}-\d{2}-\d{2}$/.test(it.due)){
+              it.due = { type: 'date', value: it.due };
+            } else {
+              // leave simple strings as-is (backward compatible)
+              // e.g., '-' or empty
+            }
+          }
+        });
       }
     });
-  });
-  // Initialize neededAmount for legacy items
-  Object.keys(state.items || {}).forEach(section=>{
-    (state.items[section]||[]).forEach(it=>{
-      if(it && it.neededAmount === undefined && section !== 'accounts'){
-        it.neededAmount = it.amount;
-      }
-    });
-  });
+  }
+  if (state.accounts && state.accounts._lastAction === undefined) {
+    state.accounts._lastAction = null;
+  }
   const gid = localStorage.getItem(GIST_ID_KEY);
   const tok = localStorage.getItem(GIST_TOKEN_KEY);
   if(gid) $('gistId').value = gid;
   if(tok) $('gistToken').value = tok;
 }
 function saveLocal(){
-  // remove any legacy transactions before persisting locally
-  const toSave = stripTransactionsFromState(state);
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(toSave));
-}
-
-// Remove legacy `transactions` sections from state (top-level or per-item) to keep persisted
-// data aligned with the current per-item `spent` model.
-function stripTransactionsFromState(src){
-  if(!src) return src;
-  try{
-    const s = JSON.parse(JSON.stringify(src));
-    if(s.transactions) delete s.transactions;
-    if(s.items){
-      Object.keys(s.items).forEach(section=>{
-        s.items[section] = (s.items[section]||[]).map(it=>{
-          if(it && it.transactions) delete it.transactions;
-          return it;
-        });
-      });
-    }
-    return s;
-  }catch(e){ return src; }
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
 }
 
 // Render
@@ -88,6 +69,25 @@ function renderLists(){
   ['accounts','budget','bills','goals'].forEach(section=>{
     const container = document.querySelector(`.list-items[data-section="${section}"]`);
     container.innerHTML = '';
+
+    const lastActionDiv = document.querySelector(`.last-action[data-section="${section}"]`);
+    if (lastActionDiv) {
+      lastActionDiv.remove();
+    }
+
+    const sectionData = section === 'accounts' ? state.accounts : state.items;
+    const lastAction = sectionData[section + '_lastAction'];
+    if (lastAction) {
+      const newLastActionDiv = document.createElement('div');
+      newLastActionDiv.className = 'last-action';
+      newLastActionDiv.dataset.section = section;
+      if (lastAction.type === 'spend') {
+        newLastActionDiv.textContent = `Last action: ${lastAction.type} on ${lastAction.name} for $${lastAction.amount} at ${new Date(lastAction.date).toLocaleTimeString()}`;
+      } else {
+        newLastActionDiv.textContent = `Last action: ${lastAction.type} on ${lastAction.name} at ${new Date(lastAction.date).toLocaleTimeString()}`;
+      }
+      container.before(newLastActionDiv);
+    }
 
     // handle accounts differently (simpler structure)
     if(section === 'accounts'){
@@ -203,7 +203,6 @@ function renderLists(){
         <div class="item-info">
           <div class="item-name editable-item-name" data-id="${item.id}" data-section="${section}">${escapeHtml(item.name)}</div>
           <div class="item-amount ${amountClass}" data-editable-amount data-id="${item.id}" data-section="${section}">${remaining.toFixed(2)}</div>
-          <div class="item-budget">/ ${Number(item.neededAmount !== undefined ? item.neededAmount : item.amount).toFixed(2)}</div>
           ${metaHTML}
         </div>
         <div class="item-actions">
@@ -242,16 +241,6 @@ function computeTotals(){
   // Available = sum of assets - sum of liabilities - budget - bills - goals
   const available = totalAccounts - totalBudget - totalBills - totalGoals;
   $('available').textContent = '$' + available.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
-  // render last-updated info if present
-  const lastUpdatedFooterEl = $('last-updated-footer');
-  if(lastUpdatedFooterEl){
-    if(state._lastSpend) {
-      const spend = state._lastSpend;
-      lastUpdatedFooterEl.textContent = `${spend.name} ($${spend.amount.toFixed(2)}) on ${new Date(spend.date).toLocaleString()}`;
-    } else {
-      lastUpdatedFooterEl.textContent = '—';
-    }
-  }
 }
 
 function render(){ renderBalances(); renderLists(); computeTotals(); }
@@ -264,31 +253,50 @@ function addItem({name,amount,neededAmount,due,section}){
     // accounts have different structure: name, amount, isPositive
     state.accounts = state.accounts || [];
     state.accounts.push({id:uid(), name, amount: parseFloat(amount)||0, isPositive: due === true}); // due used as isPositive flag
+    state.accounts._lastAction = {
+      type: 'add',
+      name,
+      date: new Date().toISOString()
+    };
   } else {
     state.items = state.items || {};
     state.items[section] = state.items[section] || [];
     const finalNeededAmount = neededAmount !== undefined ? parseFloat(neededAmount) : parseFloat(amount);
     state.items[section].push({id:uid(),name,amount: parseFloat(amount)||0,neededAmount: finalNeededAmount||0,due,spent:[]});
+    state.items[section + '_lastAction'] = {
+      type: 'add',
+      name,
+      date: new Date().toISOString()
+    };
   }
   saveLocal(); render();
   autosaveToGist();
 }
 
-function updateItem(section, id, {name, amount, neededAmount, due}){
+function updateItem(section, id, {name, amount, due}){
   if(section === 'accounts'){
     const item = state.accounts.find(a=>a.id===id);
     if(item){
       item.name = name;
       item.amount = amount;
       item.isPositive = due;
+      state.accounts._lastAction = {
+        type: 'edit',
+        name: item.name,
+        date: new Date().toISOString()
+      };
     }
   } else {
     const item = state.items[section].find(i=>i.id===id);
     if(item){
       item.name = name;
       item.amount = amount;
-      item.neededAmount = neededAmount !== undefined ? parseFloat(neededAmount) : parseFloat(amount);
       item.due = due;
+      state.items[section + '_lastAction'] = {
+        type: 'edit',
+        name: item.name,
+        date: new Date().toISOString()
+      };
     }
   }
   saveLocal(); render();
@@ -314,6 +322,12 @@ function addSpending(section, itemId, spendName, spendAmount){
   // record meta for UI
   state._lastUpdated = now;
   state._lastSpend = { section, itemId, name: spendName, amount: spendAmount, date: now, itemName: item.name };
+  state.items[section + '_lastAction'] = {
+    type: 'spend',
+    name: item.name,
+    amount: spendAmount,
+    date: now
+  };
   saveLocal();
 }
 
@@ -417,9 +431,7 @@ async function saveToGist(createNew=false, silent=false){
   const gistId = gidEl ? gidEl.value.trim() : (localStorage.getItem(GIST_ID_KEY) || '');
   if(!token){ if(!silent) setStatus('Missing GitHub token', true); return; }
   if(!gistId && !createNew){ if(!silent) setStatus('Missing Gist ID', true); return; }
-  // strip legacy transactions before saving to gist
-  const toSave = stripTransactionsFromState(state);
-  const payload = {"budget-data.json": {content: JSON.stringify(toSave, null, 2)}};
+  const payload = {"budget-data.json": {content: JSON.stringify(state, null, 2)}};
   const headers = { 'Authorization': `token ${token}`, 'Accept': 'application/vnd.github+json' };
   if(!silent) setStatus('Saving to gist...');
   try{
@@ -486,15 +498,7 @@ async function loadFromGist(silent = false){
       try{
   const parsed = JSON.parse(content);
   // remove legacy transactions from loaded data
-  state = stripTransactionsFromState(parsed);
-  // Initialize neededAmount for legacy items loaded from gist
-  Object.keys(state.items || {}).forEach(section=>{
-    (state.items[section]||[]).forEach(it=>{
-      if(it && it.neededAmount === undefined && section !== 'accounts'){
-        it.neededAmount = it.amount;
-      }
-    });
-  });
+  state = parsed;
   saveLocal(); render();
         localStorage.setItem(GIST_ID_KEY, gistId); if(token) localStorage.setItem(GIST_TOKEN_KEY, token);
         setStatus('Loaded data from gist');
@@ -594,12 +598,22 @@ function updateItemAmountAndResetSpent(section, id, newAmount){
     const item = state.accounts.find(a=>a.id===id);
     if(item){
       item.amount = newAmount;
+      state.accounts._lastAction = {
+        type: 'edit amount',
+        name: item.name,
+        date: new Date().toISOString()
+      };
     }
   } else {
     const item = state.items[section].find(i=>i.id===id);
     if(item){
       item.amount = newAmount;
       item.spent = []; // Reset spent history
+      state.items[section + '_lastAction'] = {
+        type: 'edit amount',
+        name: item.name,
+        date: new Date().toISOString()
+      };
     }
   }
   saveLocal(); render();
@@ -709,7 +723,7 @@ function showItemForm(section, itemId = null) {
   modal.innerHTML = `
     <h3>${title}</h3>
     <label>Name<br><input id="_item_name" type="text" placeholder="Name" value="${isEdit && item ? escapeHtml(item.name) : ''}"></label>
-    ${!isEdit ? `<label>Current Amount<br><input id="_item_amount" type="number" step="0.01" placeholder="0.00" value="${isEdit && item ? Number(item.amount).toFixed(2) : ''}"></label>` : ''}
+    ${!isEdit ? `<label>Current Amount<br><input id="_item_amount" type="number" step="0.01" placeholder="0.00" value=""></label>` : ''}
     ${section !== 'accounts' ? `<label>Needed Amount<br><input id="_item_needed_amount" type="number" step="0.01" placeholder="0.00" value="${isEdit && item && item.neededAmount ? Number(item.neededAmount).toFixed(2) : ''}"></label>` : ''}
     ${dueControlHtml}
     ${historyHtml}
@@ -769,7 +783,7 @@ function showItemForm(section, itemId = null) {
     }
 
     if (isEdit) {
-      updateItem(section, itemId, { name, amount, neededAmount, due });
+      updateItem(section, itemId, { name, amount, due });
     } else {
       addItem({ name, amount, neededAmount, due, section });
     }
@@ -780,4 +794,6 @@ function showItemForm(section, itemId = null) {
 
 // Init
   setupUI();
-  loadFromGist(true);
+  if (localStorage.getItem(GIST_ID_KEY) && localStorage.getItem(GIST_TOKEN_KEY)) {
+    loadFromGist(true);
+  }
