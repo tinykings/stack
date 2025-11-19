@@ -284,3 +284,72 @@ body {
 .icon-btn.active {
     color: gold;
 }
+
+/* Coin Animation Styles */
+.available-amount {
+    position: relative; /* Ensure coins are positioned relative to this container */
+    overflow: hidden; /* Hide coins that go outside the container */
+}
+
+.coin-animation {
+    width: 15px;
+    height: 15px;
+    background-color: gold; /* Coin color */
+    border-radius: 50%;
+    position: absolute;
+    opacity: 0;
+    pointer-events: none; /* Ensure coins don't interfere with clicks */
+    z-index: 1000; /* Ensure coins are above other elements */
+    transform: translate(-50%, -50%); /* Center the coin on its origin */
+}
+
+.coin-out {
+    animation: coinOutAnimation 1s ease-out forwards;
+}
+
+.coin-in {
+    animation: coinInAnimation 1s ease-out forwards;
+}
+
+@keyframes coinOutAnimation {
+    0% {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1);
+    }
+    100% {
+        opacity: 0;
+        transform: translate(calc(-50% + (var(--rand-x) * 100px)), calc(-50% + (var(--rand-y) * 100px))) scale(0.5);
+    }
+}
+
+@keyframes coinInAnimation {
+    0% {
+        opacity: 0;
+        transform: translate(calc(-50% + (var(--rand-x) * 100px)), calc(-50% + (var(--rand-y) * 100px))) scale(0.5);
+    }
+    50% {
+        opacity: 1;
+    }
+    100% {
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(1);
+    }
+}
+
+@keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    20%, 60% { transform: translateX(-5px); }
+    40%, 80% { transform: translateX(5px); }
+}
+
+.shake-and-grey {
+    animation: shake 0.5s ease-in-out;
+    color: var(--muted) !important; /* Temporarily turn grey */
+    transition: color 0.5s ease-in-out; /* Smooth transition back to normal color */
+}
+
+.shake-and-green {
+    animation: shake 0.5s ease-in-out;
+    color: #b4ffb4 !important; /* Temporarily turn green */
+    transition: color 0.5s ease-in-out; /* Smooth transition back to normal color */
+}

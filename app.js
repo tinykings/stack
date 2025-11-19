@@ -8,6 +8,8 @@ let state = {
   accounts: [], // [{id, name, amount, isPositive}]
   items: { accounts: [], budget: [], bills: [], goals: [] }
 };
+let lastAvailableAmount = 0; // New global variable
+
 // Each item now has: id, name, amount, due, spent (array of {name, amount, date})
 
 // Helpers
@@ -53,6 +55,11 @@ function loadLocal(){
   const tok = localStorage.getItem(GIST_TOKEN_KEY);
   if(gid) $('gistId').value = gid;
   if(tok) $('gistToken').value = tok;
+  // Initialize lastAvailableAmount after loading local data
+  const availableEl = $('available');
+  if (availableEl && availableEl.textContent) {
+    lastAvailableAmount = parseFloat(availableEl.textContent.replace(/[^0-9.-]+/g,"")) || 0;
+  }
 }
 function saveLocal(){
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
@@ -240,7 +247,17 @@ function computeTotals(){
   
   // Available = sum of assets - sum of liabilities - budget - bills - goals
   const available = totalAccounts - totalBudget - totalBills - totalGoals;
-  $('available').textContent = '$' + available.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+  
+  const availableEl = $('available');
+  const currentAvailableAmount = parseFloat(availableEl.textContent.replace(/[^0-9.-]+/g,"")) || 0;
+
+  if (available !== currentAvailableAmount) {
+    const direction = available > currentAvailableAmount ? 'up' : 'down';
+    animateCoins(availableEl, direction);
+  }
+
+  availableEl.textContent = '$' + available.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+  lastAvailableAmount = available; // Update lastAvailableAmount after setting new value
 }
 
 function render(){ renderBalances(); renderLists(); computeTotals(); }
@@ -797,3 +814,56 @@ function showItemForm(section, itemId = null) {
   if (localStorage.getItem(GIST_ID_KEY) && localStorage.getItem(GIST_TOKEN_KEY)) {
     loadFromGist(true);
   }
+
+function animateCoins(targetElement, direction) {
+  const numCoins = 5; // Number of coins to animate
+  const container = targetElement.closest('.available-amount'); // The parent container for positioning
+  const availableSpan = $('available'); // Get the actual span element
+
+  if (!container) return;
+
+  const targetRect = targetElement.getBoundingClientRect();
+  const containerRect = container.getBoundingClientRect();
+
+  if (direction === 'down') {
+    availableSpan.classList.add('shake-and-grey');
+    setTimeout(() => {
+      availableSpan.classList.remove('shake-and-grey');
+    }, 500); // Matches the 0.5s animation duration
+  } else if (direction === 'up') {
+    availableSpan.classList.add('shake-and-green');
+    setTimeout(() => {
+      availableSpan.classList.remove('shake-and-green');
+    }, 500); // Matches the 0.5s animation duration
+  }
+
+  for (let i = 0; i < numCoins; i++) {
+    const coin = document.createElement('div');
+    coin.classList.add('coin-animation');
+    coin.style.position = 'absolute';
+    coin.style.left = `${targetRect.left - containerRect.left + targetRect.width / 2}px`;
+    coin.style.top = `${targetRect.top - containerRect.top + targetRect.height / 2}px`;
+    coin.style.opacity = '0'; // Start invisible
+
+    // Set random CSS variables for animation
+    coin.style.setProperty('--rand-x', (Math.random() * 2 - 1).toFixed(2)); // -1 to 1
+    coin.style.setProperty('--rand-y', (Math.random() * 2 - 1).toFixed(2)); // -1 to 1
+
+    container.appendChild(coin);
+
+    // Force reflow to ensure animation starts from initial state
+    void coin.offsetWidth; 
+
+    if (direction === 'down') {
+      // Coins coming out
+      coin.classList.add('coin-out');
+    } else {
+      // Coins going in
+      coin.classList.add('coin-in');
+    }
+
+    coin.addEventListener('animationend', () => {
+      coin.remove();
+    });
+  }
+}
