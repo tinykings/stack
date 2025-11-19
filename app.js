@@ -253,11 +253,40 @@ function computeTotals(){
 
   if (available !== currentAvailableAmount) {
     const direction = available > currentAvailableAmount ? 'up' : 'down';
-    animateCoins(availableEl, direction);
+    animateNumberChange(availableEl, currentAvailableAmount, available, 1000, direction);
   }
 
   availableEl.textContent = '$' + available.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
   lastAvailableAmount = available; // Update lastAvailableAmount after setting new value
+}
+
+function animateNumberChange(element, startValue, endValue, duration, direction) {
+  let startTime;
+  const easing = t => t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t; // Ease-in-out
+
+  const originalColor = element.style.color; // Store original color
+
+  if (direction === 'up') {
+    element.style.color = '#b4ffb4'; // Green for up
+  } else if (direction === 'down') {
+    element.style.color = '#ffb4b4'; // Red for down
+  }
+
+  function animate(currentTime) {
+    if (!startTime) startTime = currentTime;
+    const progress = Math.min((currentTime - startTime) / duration, 1);
+    const easedProgress = easing(progress);
+
+    const currentValue = startValue + (endValue - startValue) * easedProgress;
+    element.textContent = '$' + currentValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+    if (progress < 1) {
+      requestAnimationFrame(animate);
+    } else {
+      element.style.color = '#ffef99'; // Restore to the default color after animation
+    }
+  }
+  requestAnimationFrame(animate);
 }
 
 function render(){ renderBalances(); renderLists(); computeTotals(); }
@@ -814,56 +843,3 @@ function showItemForm(section, itemId = null) {
   if (localStorage.getItem(GIST_ID_KEY) && localStorage.getItem(GIST_TOKEN_KEY)) {
     loadFromGist(true);
   }
-
-function animateCoins(targetElement, direction) {
-  const numCoins = 5; // Number of coins to animate
-  const container = targetElement.closest('.available-amount'); // The parent container for positioning
-  const availableSpan = $('available'); // Get the actual span element
-
-  if (!container) return;
-
-  const targetRect = targetElement.getBoundingClientRect();
-  const containerRect = container.getBoundingClientRect();
-
-  if (direction === 'down') {
-    availableSpan.classList.add('shake-and-grey');
-    setTimeout(() => {
-      availableSpan.classList.remove('shake-and-grey');
-    }, 500); // Matches the 0.5s animation duration
-  } else if (direction === 'up') {
-    availableSpan.classList.add('shake-and-green');
-    setTimeout(() => {
-      availableSpan.classList.remove('shake-and-green');
-    }, 500); // Matches the 0.5s animation duration
-  }
-
-  for (let i = 0; i < numCoins; i++) {
-    const coin = document.createElement('div');
-    coin.classList.add('coin-animation');
-    coin.style.position = 'absolute';
-    coin.style.left = `${targetRect.left - containerRect.left + targetRect.width / 2}px`;
-    coin.style.top = `${targetRect.top - containerRect.top + targetRect.height / 2}px`;
-    coin.style.opacity = '0'; // Start invisible
-
-    // Set random CSS variables for animation
-    coin.style.setProperty('--rand-x', (Math.random() * 2 - 1).toFixed(2)); // -1 to 1
-    coin.style.setProperty('--rand-y', (Math.random() * 2 - 1).toFixed(2)); // -1 to 1
-
-    container.appendChild(coin);
-
-    // Force reflow to ensure animation starts from initial state
-    void coin.offsetWidth; 
-
-    if (direction === 'down') {
-      // Coins coming out
-      coin.classList.add('coin-out');
-    } else {
-      // Coins going in
-      coin.classList.add('coin-in');
-    }
-
-    coin.addEventListener('animationend', () => {
-      coin.remove();
-    });
-  }
-}
