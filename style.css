@@ -130,8 +130,8 @@ html,body{}
 .item .editBtn{font-weight:900;font-size: inherit;border: 1px solid var(--border-color);background: var(--surface-color);color: var(--accent);;border-radius: 10px;padding: 5px 8px;}
 .item .delBtn{color:#ff8b8b}
 
-.modal-overlay{position:fixed;inset:0;background:rgba(2,6,23,0.6);display:flex;align-items:center;justify-content:center;z-index:9999}
-.modal{background:var(--card);padding:16px;border-radius:10px;min-width:280px;max-width:420px;color:inherit;box-shadow:0 8px 40px rgba(2,6,23,0.7)}
+.modal-overlay{position:fixed;inset:0;background:rgba(2,6,23,0.6);display:flex;align-items:center;justify-content:center;z-index:9999;padding:20px;box-sizing:border-box}
+.modal{background:var(--card);padding:16px;border-radius:10px;min-width:280px;max-width:420px;max-height:calc(100vh - 40px);overflow-y:auto;color:inherit;box-shadow:0 8px 40px rgba(2,6,23,0.7)}
 .modal h3{margin:0 0 8px 0;font-size:x-large}
 .modal label{display:block;margin-bottom:8px;font-size:larger}
 .modal input[type="text"],.modal input[type="number"],.modal input[type="date"],.modal select{width:100%;padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.06);background:transparent;color:inherit;font-size:large}
