@@ -629,11 +629,12 @@ function showSpendingForm(section, itemId){
   document.getElementById('_spend_cancel').addEventListener('click', ()=> cleanup());
   document.getElementById('_spend_ok').addEventListener('click', ()=>{
     const spendName = document.getElementById('_spend_name').value.trim();
-    const spendAmount = parseFloat(document.getElementById('_spend_amt').value);
+    const spendAmtValue = document.getElementById('_spend_amt').value.trim();
+    const spendAmount = spendAmtValue === '' ? 0 : parseFloat(spendAmtValue);
     const chargeAccountId = document.getElementById('_spend_account').value.trim();
     
     if(!spendName){ alert('Enter a name for the spend'); return; }
-    if(isNaN(spendAmount) || spendAmount <= 0){ alert('Enter a valid amount'); return; }
+    if(spendAmount <= 0){ alert('Enter a valid amount greater than 0'); return; }
 
     // record spent on the item
     addSpending(section, itemId, spendName, spendAmount);
@@ -721,10 +722,11 @@ function showEditAmountForm(section, itemId, currentAmount) {
   });
 
   document.getElementById('_edit_amount_ok').addEventListener('click', () => {
-    const newAmount = parseFloat(document.getElementById('_edit_amount').value);
+    const amountValue = document.getElementById('_edit_amount').value.trim();
+    const newAmount = amountValue === '' ? 0 : parseFloat(amountValue);
 
-    if (isNaN(newAmount) || newAmount < 0) {
-      alert('Enter a valid positive amount');
+    if (newAmount < 0) {
+      alert('Amount cannot be negative');
       return;
     }
 
@@ -874,12 +876,15 @@ function showItemForm(section, itemId = null) {
 
   document.getElementById('_item_ok').addEventListener('click', () => {
     const name = document.getElementById('_item_name').value.trim();
-    const newAmount = parseFloat(document.getElementById('_item_amount').value);
-    const neededAmount = section !== 'accounts' ? parseFloat(document.getElementById('_item_needed_amount').value) : undefined;
+    // Treat blank as 0 for number inputs
+    const amountValue = document.getElementById('_item_amount').value.trim();
+    const newAmount = amountValue === '' ? 0 : parseFloat(amountValue);
+    const neededAmountValue = section !== 'accounts' ? document.getElementById('_item_needed_amount').value.trim() : '';
+    const neededAmount = section !== 'accounts' ? (neededAmountValue === '' ? 0 : parseFloat(neededAmountValue)) : undefined;
     const enableSpending = section !== 'accounts' ? document.getElementById('_item_enable_spending').checked : undefined;
 
-    if (!name || isNaN(newAmount) || (section !== 'accounts' && !isEdit && isNaN(neededAmount))) {
-      alert('Enter name and valid amounts');
+    if (!name) {
+      alert('Enter a name');
       return;
     }
 
