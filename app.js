@@ -210,11 +210,25 @@ function renderLists(){
         `;
       }
 
+      // Calculate progress percentage - shows remaining funds (full = all money available)
+      const totalBudget = Number(neededAmount) || 0;
+      const remainingPercent = totalBudget > 0 ? Math.max(0, Math.min(100, (remaining / totalBudget) * 100)) : 0;
+      let progressClass = 'good';
+      if (remainingPercent < 25) progressClass = 'danger';
+      else if (remainingPercent < 50) progressClass = 'warning';
+      
+      const progressHTML = totalBudget > 0 ? `
+        <div class="item-progress">
+          <div class="item-progress-bar ${progressClass}" style="width: ${remainingPercent}%"></div>
+        </div>
+      ` : '';
+
       div.innerHTML = `
         <div class="item-info">
           <div class="item-name editable-item-name" data-id="${item.id}" data-section="${section}">${escapeHtml(item.name)}</div>
-          <div class="item-amount ${amountClass}" data-editable-amount data-id="${item.id}" data-section="${section}">${remaining.toFixed(2)}</div>
+          <div class="item-amount ${amountClass}" data-editable-amount data-id="${item.id}" data-section="${section}">$${Math.abs(remaining).toFixed(2)}</div>
           ${metaHTML}
+          ${progressHTML}
         </div>
         <div class="item-actions">
           <button class="addSpendBtn" data-id="${item.id}" data-section="${section}">Spend</button>
