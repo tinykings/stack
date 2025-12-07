@@ -1056,9 +1056,7 @@ function setupAutoRefresh() {
     loadFromGist(true);
   }
 
-// PWA Install Banner
-const INSTALL_DISMISSED_KEY = 'install_banner_dismissed';
-
+// PWA Install Detection
 function isPWA() {
   // Check if running as standalone PWA
   if (window.matchMedia('(display-mode: standalone)').matches) return true;
@@ -1072,41 +1070,39 @@ function isPWA() {
 }
 
 function setupInstallBanner() {
-  const banner = $('install-banner');
-  const howBtn = $('install-banner-how');
-  const closeBtn = $('install-banner-close');
   const modal = $('install-modal');
   const modalCloseBtn = $('install-modal-close');
+  const installSection = $('install-section');
+  const showInstallBtn = $('show-install-btn');
+  const gistModal = $('gist-modal');
 
-  if (!banner || !modal) return;
+  if (!modal) return;
 
-  // Check if already dismissed or running as PWA
-  const dismissed = localStorage.getItem(INSTALL_DISMISSED_KEY);
-  if (isPWA() || dismissed) {
-    banner.style.display = 'none';
-    return;
+  const runningAsPWA = isPWA();
+
+  // Hide install section in settings if already running as PWA
+  if (installSection) {
+    installSection.style.display = runningAsPWA ? 'none' : 'flex';
   }
 
-  // Show banner
-  banner.style.display = 'block';
-  document.body.classList.add('has-install-banner');
-
-  // How to install button
-  howBtn.addEventListener('click', () => {
-    modal.style.display = 'flex';
-  });
-
-  // Close banner (dismiss permanently)
-  closeBtn.addEventListener('click', () => {
-    banner.style.display = 'none';
-    document.body.classList.remove('has-install-banner');
-    localStorage.setItem(INSTALL_DISMISSED_KEY, 'true');
-  });
+  // Show install instructions from settings
+  if (showInstallBtn) {
+    showInstallBtn.addEventListener('click', () => {
+      // Close settings modal first
+      if (gistModal) {
+        gistModal.style.display = 'none';
+      }
+      // Show install instructions modal
+      modal.style.display = 'flex';
+    });
+  }
 
   // Close modal
-  modalCloseBtn.addEventListener('click', () => {
-    modal.style.display = 'none';
-  });
+  if (modalCloseBtn) {
+    modalCloseBtn.addEventListener('click', () => {
+      modal.style.display = 'none';
+    });
+  }
 
   // Close modal on overlay click
   modal.addEventListener('click', (e) => {
@@ -1118,8 +1114,9 @@ function setupInstallBanner() {
   // Listen for display mode change (user installed the app)
   window.matchMedia('(display-mode: standalone)').addEventListener('change', (e) => {
     if (e.matches) {
-      banner.style.display = 'none';
-      document.body.classList.remove('has-install-banner');
+      if (installSection) {
+        installSection.style.display = 'none';
+      }
     }
   });
 }
