@@ -377,16 +377,6 @@ function addSpending(section, itemId, spendName, spendAmount){
   saveLocal();
 }
 
-function updateLastRefreshTime() {
-  const now = new Date();
-  const options = { year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', minute: 'numeric', second: 'numeric' };
-  const formattedDateTime = now.toLocaleDateString(undefined, options);
-  const lastRefreshTimeEl = $('last-refresh-time');
-  if (lastRefreshTimeEl) {
-    lastRefreshTimeEl.textContent = `-${formattedDateTime}-`;
-  }
-}
-
 // UI wiring
 function setupUI(){
   loadLocal(); render();
@@ -459,15 +449,6 @@ function setupUI(){
     });
   }
 
-  const refreshBtnFooter = $('refresh-btn-footer');
-  if (refreshBtnFooter) {
-    refreshBtnFooter.addEventListener('click', e => {
-      e.preventDefault();
-      location.reload();
-      updateLastRefreshTime(); // Update time on refresh button click
-    });
-  }
-  updateLastRefreshTime(); // Initial call on page load
 }
 
 // Gist API
@@ -853,7 +834,6 @@ function setupAutoRefresh() {
     
     lastRefreshTime = now;
     await loadFromGist(true);
-    updateLastRefreshTime();
   }
 
   // Refresh when page becomes visible (returning from background/tab switch)
