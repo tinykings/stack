@@ -191,18 +191,21 @@ function renderLists(){
       }
 
       // Build metadata (last spend info)
+      const neededAmount = item.neededAmount !== undefined ? item.neededAmount : item.amount;
+      const neededDisplay = `$${Number(neededAmount).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+      
       let metaHTML = '';
       if(item.spent.length > 0){
         const mostRecent = item.spent[item.spent.length - 1];
         metaHTML = `
           <div class="item-meta-row" data-id="${item.id}" data-section="${section}">
-            <span class="meta">${escapeHtml(dueDisplay)} • ${escapeHtml(mostRecent.name)} (-${Number(mostRecent.amount).toFixed(2)})</span>
+            <span class="meta">${escapeHtml(dueDisplay)} • ${neededDisplay} • ${escapeHtml(mostRecent.name)} (-${Number(mostRecent.amount).toFixed(2)})</span>
           </div>
         `;
       } else {
         metaHTML = `
           <div class="item-meta-row" data-id="${item.id}" data-section="${section}">
-            <span class="meta">${escapeHtml(dueDisplay)}</span>
+            <span class="meta">${escapeHtml(dueDisplay)} • ${neededDisplay}</span>
           </div>
         `;
       }
