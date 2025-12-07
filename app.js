@@ -109,9 +109,9 @@ function renderLists(){
         const amountClass = acc.isPositive ? 'asset' : 'liability';
         
         div.innerHTML = `
-          <div class="item-info">
-            <div class="item-name editable-item-name" data-id="${acc.id}" data-section="accounts">${escapeHtml(acc.name)}</div>
-            <div class="item-amount ${amountClass}" data-editable-amount data-id="${acc.id}" data-section="accounts">$${Number(acc.amount).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
+          <div class="item-info item-clickable" data-id="${acc.id}" data-section="accounts">
+            <div class="item-name">${escapeHtml(acc.name)}</div>
+            <div class="item-amount ${amountClass}">$${Number(acc.amount).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
           </div>
         `;
         
@@ -223,16 +223,22 @@ function renderLists(){
         </div>
       ` : '';
 
-      div.innerHTML = `
-        <div class="item-info">
-          <div class="item-name editable-item-name" data-id="${item.id}" data-section="${section}">${escapeHtml(item.name)}</div>
-          <div class="item-amount ${amountClass}" data-editable-amount data-id="${item.id}" data-section="${section}">$${Math.abs(remaining).toFixed(2)}</div>
-          ${metaHTML}
-          ${progressHTML}
-        </div>
+      // Only show Spend button if enableSpending is not explicitly false
+      const showSpendButton = item.enableSpending !== false;
+      const spendButtonHTML = showSpendButton ? `
         <div class="item-actions">
           <button class="addSpendBtn" data-id="${item.id}" data-section="${section}">Spend</button>
         </div>
+      ` : '';
+
+      div.innerHTML = `
+        <div class="item-info item-clickable" data-id="${item.id}" data-section="${section}">
+          <div class="item-name">${escapeHtml(item.name)}</div>
+          <div class="item-amount ${amountClass}">$${Math.abs(remaining).toFixed(2)}</div>
+          ${metaHTML}
+          ${progressHTML}
+        </div>
+        ${spendButtonHTML}
       `;
 
       container.appendChild(div);
@@ -312,7 +318,7 @@ function render(){ renderBalances(); renderLists(); computeTotals(); }
 function escapeHtml(text){ return (text+'').replace(/[&<>"]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;","\"":"&quot;"})[c]); }
 
 // Actions
-function addItem({name,amount,neededAmount,due,section}){
+function addItem({name,amount,neededAmount,due,section,enableSpending}){
   if(section === 'accounts'){
     // accounts have different structure: name, amount, isPositive
     state.accounts = state.accounts || [];
@@ -326,7 +332,8 @@ function addItem({name,amount,neededAmount,due,section}){
     state.items = state.items || {};
     state.items[section] = state.items[section] || [];
     const finalNeededAmount = neededAmount !== undefined ? parseFloat(neededAmount) : parseFloat(amount);
-    state.items[section].push({id:uid(),name,amount: parseFloat(amount)||0,neededAmount: finalNeededAmount||0,due,spent:[]});
+    const spendingEnabled = enableSpending !== undefined ? enableSpending : true;
+    state.items[section].push({id:uid(),name,amount: parseFloat(amount)||0,neededAmount: finalNeededAmount||0,due,spent:[],enableSpending: spendingEnabled});
     state.items[section + '_lastAction'] = {
       type: 'add',
       name,
@@ -337,7 +344,7 @@ function addItem({name,amount,neededAmount,due,section}){
   autosaveToGist();
 }
 
-function updateItem(section, id, {name, amount, due}){
+function updateItem(section, id, {name, amount, due, neededAmount, enableSpending}){
   if(section === 'accounts'){
     const item = state.accounts.find(a=>a.id===id);
     if(item){
@@ -356,6 +363,8 @@ function updateItem(section, id, {name, amount, due}){
       item.name = name;
       item.amount = amount;
       item.due = due;
+      if (neededAmount !== undefined) item.neededAmount = neededAmount;
+      if (enableSpending !== undefined) item.enableSpending = enableSpending;
       state.items[section + '_lastAction'] = {
         type: 'edit',
         name: item.name,
@@ -411,29 +420,14 @@ function setupUI(){
 
   document.querySelectorAll('.list-items').forEach(container=>{
     container.addEventListener('click', e=>{
-      const target = e.target.closest('.editable-item-name, .addSpendBtn');
+      const target = e.target.closest('.item-clickable, .addSpendBtn');
       if(target){
         const id = target.dataset.id;
         const section = target.dataset.section;
         if(target.classList.contains('addSpendBtn')){
           showSpendingForm(section, id);
-        } else if(target.classList.contains('editable-item-name')){
+        } else if(target.classList.contains('item-clickable')){
           showItemForm(section, id);
-        }
-      } else {
-        const editableAmountTarget = e.target.closest('[data-editable-amount]');
-        if (editableAmountTarget) {
-          const id = editableAmountTarget.dataset.id;
-          const section = editableAmountTarget.dataset.section;
-          let currentAmount;
-          if (section === 'accounts') {
-            const account = state.accounts.find(a => a.id === id);
-            currentAmount = account ? account.amount : 0;
-          } else {
-            const item = state.items[section].find(i => i.id === id);
-            currentAmount = item ? item.amount : 0;
-          }
-          showEditAmountForm(section, id, currentAmount);
         }
       }
     });
@@ -788,19 +782,45 @@ function showItemForm(section, itemId = null) {
 
   let historyHtml = '';
   if (isEdit && ['budget', 'bills', 'goals'].includes(section) && item.spent && item.spent.length > 0) {
-    historyHtml = '<h4>Spend History</h4><ul>';
-    item.spent.forEach(spend => {
-      historyHtml += `<li>${escapeHtml(spend.name)} - $${Number(spend.amount).toFixed(2)} on ${new Date(spend.date).toLocaleDateString()}</li>`;
+    historyHtml = '<h4>Spend History</h4><ul class="spend-history-list">';
+    item.spent.forEach((spend, index) => {
+      historyHtml += `
+        <li class="spend-history-item">
+          <span class="spend-info">${escapeHtml(spend.name)} - $${Number(spend.amount).toFixed(2)} on ${new Date(spend.date).toLocaleDateString()}</span>
+          <button type="button" class="delete-spend-btn" data-index="${index}" title="Delete">✕</button>
+        </li>`;
     });
     historyHtml += '</ul>';
   }
 
+  // Get current amount for editing
+  let currentAmountValue = '';
+  if (isEdit && item) {
+    if (section === 'accounts') {
+      currentAmountValue = Number(item.amount).toFixed(2);
+    } else {
+      const totalSpent = (item.spent || []).reduce((a, b) => a + Number(b.amount || 0), 0);
+      const remaining = Number(item.amount) - totalSpent;
+      currentAmountValue = remaining.toFixed(2);
+    }
+  }
+
+  // Enable Spending toggle (only for budget, bills, goals - not accounts)
+  const enableSpendingChecked = isEdit && item ? (item.enableSpending !== false) : true;
+  const enableSpendingHtml = section !== 'accounts' ? `
+    <label class="toggle-label">
+      <input id="_item_enable_spending" type="checkbox" ${enableSpendingChecked ? 'checked' : ''}>
+      Enable Spending
+    </label>
+  ` : '';
+
   modal.innerHTML = `
     <h3>${title}</h3>
     <label>Name<br><input id="_item_name" type="text" placeholder="Name" value="${isEdit && item ? escapeHtml(item.name) : ''}"></label>
-    ${!isEdit ? `<label>Current Amount<br><input id="_item_amount" type="number" step="0.01" placeholder="0.00" value=""></label>` : ''}
+    <label>Current Amount<br><input id="_item_amount" type="number" step="0.01" placeholder="0.00" value="${currentAmountValue}"></label>
     ${section !== 'accounts' ? `<label>Needed Amount<br><input id="_item_needed_amount" type="number" step="0.01" placeholder="0.00" value="${isEdit && item && item.neededAmount ? Number(item.neededAmount).toFixed(2) : ''}"></label>` : ''}
     ${dueControlHtml}
+    ${enableSpendingHtml}
     ${historyHtml}
     <div class="actions">
       ${isEdit ? '<button id="_item_delete" class="delBtn">Delete</button>' : ''}
@@ -829,14 +849,36 @@ function showItemForm(section, itemId = null) {
         cleanup();
       }
     });
+
+    // Handle delete spend item buttons
+    document.querySelectorAll('.delete-spend-btn').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        e.preventDefault();
+        const index = parseInt(btn.dataset.index);
+        if (confirm('Delete this spend entry?')) {
+          // Remove the spend item from the item's spent array
+          if (item.spent && item.spent[index]) {
+            item.spent.splice(index, 1);
+            saveLocal();
+            render(); // Update main UI
+            // Wait for gist save to complete before reopening form
+            await saveToGist(false, true);
+            // Re-open the form to refresh the list
+            cleanup();
+            showItemForm(section, itemId);
+          }
+        }
+      });
+    });
   }
 
   document.getElementById('_item_ok').addEventListener('click', () => {
     const name = document.getElementById('_item_name').value.trim();
-    const amount = !isEdit ? parseFloat(document.getElementById('_item_amount').value) : item.amount;
+    const newAmount = parseFloat(document.getElementById('_item_amount').value);
     const neededAmount = section !== 'accounts' ? parseFloat(document.getElementById('_item_needed_amount').value) : undefined;
+    const enableSpending = section !== 'accounts' ? document.getElementById('_item_enable_spending').checked : undefined;
 
-    if (!name || (!isEdit && isNaN(amount)) || (section !== 'accounts' && isNaN(neededAmount))) {
+    if (!name || isNaN(newAmount) || (section !== 'accounts' && !isEdit && isNaN(neededAmount))) {
       alert('Enter name and valid amounts');
       return;
     }
@@ -858,9 +900,21 @@ function showItemForm(section, itemId = null) {
     }
 
     if (isEdit) {
-      updateItem(section, itemId, { name, amount, due });
+      // Check if amount changed for non-account items
+      if (section !== 'accounts') {
+        const oldRemaining = Number(item.amount) - (item.spent || []).reduce((a, b) => a + Number(b.amount || 0), 0);
+        if (Math.abs(newAmount - oldRemaining) > 0.001) {
+          // Amount changed - update with new amount and reset spent
+          updateItemAmountAndResetSpent(section, itemId, newAmount);
+        }
+        // Update other fields
+        updateItem(section, itemId, { name, amount: item.amount, due, neededAmount, enableSpending });
+      } else {
+        updateItem(section, itemId, { name, amount: newAmount, due });
+      }
     } else {
-      addItem({ name, amount, neededAmount, due, section });
+      const finalNeededAmount = neededAmount !== undefined && !isNaN(neededAmount) ? neededAmount : newAmount;
+      addItem({ name, amount: newAmount, neededAmount: finalNeededAmount, due, section, enableSpending });
     }
 
     cleanup();
