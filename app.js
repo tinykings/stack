@@ -838,8 +838,47 @@ function showItemForm(section, itemId = null) {
   });
 }
 
+// Auto-refresh when app becomes visible (e.g., returning from background)
+function setupAutoRefresh() {
+  let lastRefreshTime = Date.now();
+  const MIN_REFRESH_INTERVAL = 5000; // Don't refresh more than once per 5 seconds
+
+  async function autoRefreshFromGist() {
+    const now = Date.now();
+    if (now - lastRefreshTime < MIN_REFRESH_INTERVAL) return;
+    
+    const gistId = localStorage.getItem(GIST_ID_KEY);
+    const token = localStorage.getItem(GIST_TOKEN_KEY);
+    if (!gistId || !token) return;
+    
+    lastRefreshTime = now;
+    await loadFromGist(true);
+    updateLastRefreshTime();
+  }
+
+  // Refresh when page becomes visible (returning from background/tab switch)
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+      autoRefreshFromGist();
+    }
+  });
+
+  // Also refresh on window focus (for PWAs that might not trigger visibilitychange)
+  window.addEventListener('focus', () => {
+    autoRefreshFromGist();
+  });
+
+  // For iOS PWAs: pageshow event fires when returning to a cached page
+  window.addEventListener('pageshow', (event) => {
+    if (event.persisted) {
+      autoRefreshFromGist();
+    }
+  });
+}
+
 // Init
   setupUI();
+  setupAutoRefresh();
   if (localStorage.getItem(GIST_ID_KEY) && localStorage.getItem(GIST_TOKEN_KEY)) {
     loadFromGist(true);
   }
