@@ -332,7 +332,7 @@ function addItem({name,amount,neededAmount,due,section,enableSpending}){
     state.items = state.items || {};
     state.items[section] = state.items[section] || [];
     const finalNeededAmount = neededAmount !== undefined ? parseFloat(neededAmount) : parseFloat(amount);
-    const spendingEnabled = enableSpending !== undefined ? enableSpending : true;
+    const spendingEnabled = enableSpending !== undefined ? enableSpending : false;
     state.items[section].push({id:uid(),name,amount: parseFloat(amount)||0,neededAmount: finalNeededAmount||0,due,spent:[],enableSpending: spendingEnabled});
     state.items[section + '_lastAction'] = {
       type: 'add',
@@ -808,7 +808,8 @@ function showItemForm(section, itemId = null) {
   }
 
   // Enable Spending toggle (only for budget, bills, goals - not accounts)
-  const enableSpendingChecked = isEdit && item ? (item.enableSpending !== false) : true;
+  // Default to unchecked for new items, preserve existing value for edits
+  const enableSpendingChecked = isEdit && item ? (item.enableSpending !== false) : false;
   const enableSpendingHtml = section !== 'accounts' ? `
     <label class="toggle-label">
       <input id="_item_enable_spending" type="checkbox" ${enableSpendingChecked ? 'checked' : ''}>
