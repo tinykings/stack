@@ -491,6 +491,78 @@ function setupUI(){
     });
   }
 
+  // Export Data button - downloads state as JSON file
+  const exportBtn = $('export-btn');
+  if (exportBtn) {
+    exportBtn.addEventListener('click', () => {
+      try {
+        const data = JSON.stringify(state, null, 2);
+        const blob = new Blob([data], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        const date = new Date().toISOString().slice(0, 10);
+        a.download = `stack-backup-${date}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      } catch (err) {
+        alert('Export failed: ' + err.message);
+      }
+    });
+  }
+
+  // Import Data button - triggers file input
+  const importBtn = $('import-btn');
+  const importFile = $('import-file');
+  if (importBtn && importFile) {
+    importBtn.addEventListener('click', () => {
+      importFile.click();
+    });
+
+    importFile.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        try {
+          const importedData = JSON.parse(event.target.result);
+          
+          // Validate basic structure
+          if (typeof importedData !== 'object') {
+            throw new Error('Invalid backup file format');
+          }
+
+          if (confirm('This will replace all your current data with the imported backup. Are you sure?')) {
+            // Merge imported data into state
+            Object.assign(state, importedData);
+            saveLocal();
+            render();
+            alert('Data imported successfully!');
+            
+            // Close the settings modal
+            const gistModal = $('gist-modal');
+            if (gistModal) gistModal.style.display = 'none';
+          }
+        } catch (err) {
+          alert('Import failed: ' + err.message);
+        }
+        
+        // Reset file input so same file can be selected again
+        importFile.value = '';
+      };
+
+      reader.onerror = () => {
+        alert('Failed to read file');
+        importFile.value = '';
+      };
+
+      reader.readAsText(file);
+    });
+  }
+
 }
 
 // Gist API

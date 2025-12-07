@@ -450,10 +450,60 @@ body {
   padding:8px;
 }
 
-/* Update Section */
-.update-section{
+/* Backup Section */
+.backup-section{
   margin-top:20px;
   padding-top:20px;
+  border-top:1px solid var(--border-color);
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+}
+
+.backup-section h4{
+  margin:0;
+  font-size:15px;
+  font-weight:600;
+  color:var(--primary-text-color);
+}
+
+.backup-buttons{
+  display:flex;
+  gap:10px;
+}
+
+.backup-btn{
+  flex:1;
+  padding:12px 16px;
+  border-radius:10px;
+  border:1px solid var(--border-color);
+  background:var(--surface-color-elevated);
+  color:var(--primary-text-color);
+  cursor:pointer;
+  font-weight:500;
+  font-size:14px;
+  min-height:44px;
+  transition:transform 0.12s ease, background 0.12s ease;
+}
+
+.backup-btn:hover{
+  background:var(--border-color);
+}
+
+.backup-btn:active{
+  transform:scale(0.97);
+}
+
+.backup-section small{
+  color:var(--muted);
+  font-size:12px;
+  text-align:center;
+}
+
+/* Update Section */
+.update-section{
+  margin-top:16px;
+  padding-top:16px;
   border-top:1px solid var(--border-color);
   display:flex;
   flex-direction:column;
