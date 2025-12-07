@@ -16,6 +16,55 @@
   <link rel="icon" type="image/png" sizes="16x16" href="images/icon.png">
 </head>
 <body>
+  <div id="install-banner" class="install-banner" style="display:none;">
+    <div class="install-banner-content">
+      <div class="install-banner-text">
+        <strong>Install Stack</strong>
+        <span>Add to your home screen for the best experience</span>
+      </div>
+      <div class="install-banner-actions">
+        <button id="install-banner-how" class="install-how-btn">How to Install</button>
+        <button id="install-banner-close" class="install-close-btn" aria-label="Dismiss">✕</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="install-modal" class="modal-overlay" style="display:none;">
+    <div class="modal">
+      <h3>Install Stack as an App</h3>
+      <div class="install-instructions">
+        <div id="install-chrome" class="install-method">
+          <h4>Chrome / Edge</h4>
+          <ol>
+            <li>Tap the menu icon <strong>⋮</strong> (three dots)</li>
+            <li>Select <strong>"Install app"</strong> or <strong>"Add to Home screen"</strong></li>
+            <li>Tap <strong>"Install"</strong> to confirm</li>
+          </ol>
+        </div>
+        <div id="install-safari" class="install-method">
+          <h4>Safari (iOS)</h4>
+          <ol>
+            <li>Tap the <strong>Share</strong> button (square with arrow)</li>
+            <li>Scroll down and tap <strong>"Add to Home Screen"</strong></li>
+            <li>Tap <strong>"Add"</strong> to confirm</li>
+          </ol>
+        </div>
+        <div id="install-firefox" class="install-method">
+          <h4>Firefox</h4>
+          <ol>
+            <li>Tap the menu icon <strong>⋯</strong> (three dots)</li>
+            <li>Select <strong>"Install"</strong> or <strong>"Add to Home screen"</strong></li>
+            <li>Tap <strong>"Add"</strong> to confirm</li>
+          </ol>
+        </div>
+      </div>
+      <p class="install-note">Installing as an app provides offline access, faster loading, and a full-screen experience.</p>
+      <div class="actions">
+        <button id="install-modal-close">Got it</button>
+      </div>
+    </div>
+  </div>
+
   <main class="container">
     <header class="top">
       <section class="balances">
