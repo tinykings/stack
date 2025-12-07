@@ -613,6 +613,9 @@ function showSpendingForm(section, itemId){
 
   function cleanup(){ overlay.remove(); }
 
+  // Select all on focus for amount field
+  document.getElementById('_spend_amt').addEventListener('focus', (e) => e.target.select());
+
   // session remember: default account selection stored in sessionStorage
   try{
     const pref = sessionStorage.getItem('spend_charge_credit_default');
@@ -715,6 +718,9 @@ function showEditAmountForm(section, itemId, currentAmount) {
   function cleanup() {
     overlay.remove();
   }
+
+  // Select all on focus for amount field
+  document.getElementById('_edit_amount').addEventListener('focus', (e) => e.target.select());
 
   document.getElementById('_edit_amount_cancel').addEventListener('click', () => cleanup());
   overlay.addEventListener('click', (e) => {
@@ -838,6 +844,12 @@ function showItemForm(section, itemId = null) {
 
   function cleanup() {
     overlay.remove();
+  }
+
+  // Clear amount fields on focus for easier editing
+  document.getElementById('_item_amount').addEventListener('focus', (e) => e.target.select());
+  if (section !== 'accounts') {
+    document.getElementById('_item_needed_amount').addEventListener('focus', (e) => e.target.select());
   }
 
   document.getElementById('_item_cancel').addEventListener('click', () => cleanup());
