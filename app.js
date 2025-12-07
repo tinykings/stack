@@ -82,8 +82,9 @@ function renderLists(){
       lastActionDiv.remove();
     }
 
-    const sectionData = section === 'accounts' ? state.accounts : state.items;
-    const lastAction = sectionData[section + '_lastAction'];
+    const lastAction = section === 'accounts' 
+      ? state.accounts._lastAction 
+      : state.items[section + '_lastAction'];
     if (lastAction) {
       const newLastActionDiv = document.createElement('div');
       newLastActionDiv.className = 'last-action';
