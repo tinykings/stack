@@ -6,6 +6,7 @@ const GIST_TOKEN_KEY = 'budget_gist_token';
 let state = {
   balances: { checking: 0, savings: 0, credit: 0 },
   accounts: [], // [{id, name, amount, isPositive}]
+  accounts_lastAction: null, // Last action for accounts section
   items: { accounts: [], budget: [], bills: [], goals: [] }
 };
 let lastAvailableAmount = 0; // New global variable
@@ -49,8 +50,8 @@ function loadLocal(){
       }
     });
   }
-  if (state.accounts && state.accounts._lastAction === undefined) {
-    state.accounts._lastAction = null;
+  if (state.accounts_lastAction === undefined) {
+    state.accounts_lastAction = null;
   }
   const gid = localStorage.getItem(GIST_ID_KEY);
   const tok = localStorage.getItem(GIST_TOKEN_KEY);
@@ -84,7 +85,7 @@ function renderLists(){
     }
 
     const lastAction = section === 'accounts' 
-      ? state.accounts._lastAction 
+      ? state.accounts_lastAction 
       : state.items[section + '_lastAction'];
     if (lastAction) {
       const newLastActionDiv = document.createElement('div');
@@ -324,7 +325,7 @@ function addItem({name,amount,neededAmount,due,section,enableSpending}){
     // accounts have different structure: name, amount, isPositive
     state.accounts = state.accounts || [];
     state.accounts.push({id:uid(), name, amount: parseFloat(amount)||0, isPositive: due === true}); // due used as isPositive flag
-    state.accounts._lastAction = {
+    state.accounts_lastAction = {
       type: 'add',
       name,
       date: new Date().toISOString()
@@ -352,7 +353,7 @@ function updateItem(section, id, {name, amount, due, neededAmount, enableSpendin
       item.name = name;
       item.amount = amount;
       item.isPositive = due;
-      state.accounts._lastAction = {
+      state.accounts_lastAction = {
         type: 'edit',
         name: item.name,
         date: new Date().toISOString()
@@ -749,7 +750,7 @@ function updateItemAmountAndResetSpent(section, id, newAmount){
     const item = state.accounts.find(a=>a.id===id);
     if(item){
       item.amount = newAmount;
-      state.accounts._lastAction = {
+      state.accounts_lastAction = {
         type: 'edit amount',
         name: item.name,
         date: new Date().toISOString()
