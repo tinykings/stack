@@ -9,6 +9,7 @@ let state = {
   items: { accounts: [], budget: [], bills: [], goals: [] }
 };
 let lastAvailableAmount = 0; // New global variable
+let isSavingToGist = false; // Flag to prevent auto-refresh during save
 
 // Each item now has: id, name, amount, due, spent (array of {name, amount, date})
 
@@ -376,14 +377,14 @@ function updateItem(section, id, {name, amount, due, neededAmount, enableSpendin
   autosaveToGist();
 }
 
-function removeItem(section,id){
+async function removeItem(section,id){
   if(section === 'accounts'){
     state.accounts = state.accounts.filter(a=>a.id!==id);
   } else {
     state.items[section] = state.items[section].filter(i=>i.id!==id);
   }
   saveLocal(); render();
-  autosaveToGist();
+  await autosaveToGist();
 }
 
 function addSpending(section, itemId, spendName, spendAmount){
@@ -600,12 +601,17 @@ async function saveToGist(createNew=false, silent=false){
   }catch(err){ if(!silent) setStatus('Network error saving gist', true); console.error(err); }
 }
 
-function autosaveToGist(){
+async function autosaveToGist(){
   const token = ($('gistToken') && $('gistToken').value.trim()) || localStorage.getItem(GIST_TOKEN_KEY);
   const gid = ($('gistId') && $('gistId').value.trim()) || localStorage.getItem(GIST_ID_KEY);
   if(!token || !gid) return; // silently skip
-  // fire-and-forget, silent
-  saveToGist(false, true);
+  // Set flag to prevent auto-refresh during save
+  isSavingToGist = true;
+  try {
+    await saveToGist(false, true);
+  } finally {
+    isSavingToGist = false;
+  }
 }
 
 async function loadFromGist(silent = false){
@@ -930,9 +936,9 @@ function showItemForm(section, itemId = null) {
   });
 
   if (isEdit) {
-    document.getElementById('_item_delete').addEventListener('click', () => {
+    document.getElementById('_item_delete').addEventListener('click', async () => {
       if (confirm('Remove item?')) {
-        removeItem(section, itemId);
+        await removeItem(section, itemId);
         cleanup();
       }
     });
@@ -1017,6 +1023,9 @@ function setupAutoRefresh() {
   const MIN_REFRESH_INTERVAL = 5000; // Don't refresh more than once per 5 seconds
 
   async function autoRefreshFromGist() {
+    // Don't refresh while a save is in progress
+    if (isSavingToGist) return;
+    
     const now = Date.now();
     if (now - lastRefreshTime < MIN_REFRESH_INTERVAL) return;
     
