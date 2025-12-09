@@ -648,8 +648,6 @@ body {
   padding:0;
   font-size:14px;
   color:var(--secondary-text-color);
-  max-height:200px;
-  overflow-y:auto;
   list-style:none;
 }
 
