@@ -870,13 +870,14 @@ function showItemForm(section, itemId = null) {
   let historyHtml = '';
   if (isEdit && ['budget', 'bills', 'goals'].includes(section) && item.spent && item.spent.length > 0) {
     historyHtml = '<h4>Spend History</h4><ul class="spend-history-list">';
-    item.spent.forEach((spend, index) => {
+    for (let index = item.spent.length - 1; index >= 0; index--) {
+      const spend = item.spent[index];
       historyHtml += `
         <li class="spend-history-item">
           <span class="spend-info">${escapeHtml(spend.name)} - $${Number(spend.amount).toFixed(2)} on ${new Date(spend.date).toLocaleDateString()}</span>
           <button type="button" class="delete-spend-btn" data-index="${index}" title="Delete">✕</button>
         </li>`;
-    });
+    }
     historyHtml += '</ul>';
   }
 
