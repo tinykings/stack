@@ -104,9 +104,9 @@ function renderLists(){
       const formattedActionDate = formatActionDate(lastAction.date);
       const dateSuffix = formattedActionDate ? ` at ${formattedActionDate}` : '';
       if (lastAction.type === 'spend') {
-        newLastActionDiv.textContent = `${lastAction.type} on ${lastAction.name} for $${lastAction.amount}${dateSuffix}`;
+        newLastActionDiv.textContent = `${lastAction.type} - ${lastAction.name} - $${lastAction.amount}${dateSuffix}`;
       } else {
-        newLastActionDiv.textContent = `${lastAction.type} on ${lastAction.name}${dateSuffix}`;
+        newLastActionDiv.textContent = `${lastAction.type} - ${lastAction.name}${dateSuffix}`;
       }
       container.before(newLastActionDiv);
     }
