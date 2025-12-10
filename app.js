@@ -20,6 +20,16 @@ const q = (sel, root=document) => root.querySelector(sel);
 
 function uid(){return Math.random().toString(36).slice(2,9)}
 
+function formatActionDate(dateString){
+  const date = new Date(dateString);
+  if(Number.isNaN(date.getTime())) return '';
+  try{
+    return date.toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' });
+  }catch(err){
+    return date.toLocaleString();
+  }
+}
+
 // Load/save local
 function loadLocal(){
   const raw = localStorage.getItem(STORAGE_KEY);
@@ -91,10 +101,12 @@ function renderLists(){
       const newLastActionDiv = document.createElement('div');
       newLastActionDiv.className = 'last-action';
       newLastActionDiv.dataset.section = section;
+      const formattedActionDate = formatActionDate(lastAction.date);
+      const dateSuffix = formattedActionDate ? ` at ${formattedActionDate}` : '';
       if (lastAction.type === 'spend') {
-        newLastActionDiv.textContent = `Last action: ${lastAction.type} on ${lastAction.name} for $${lastAction.amount} at ${new Date(lastAction.date).toLocaleTimeString()}`;
+        newLastActionDiv.textContent = `${lastAction.type} on ${lastAction.name} for $${lastAction.amount}${dateSuffix}`;
       } else {
-        newLastActionDiv.textContent = `Last action: ${lastAction.type} on ${lastAction.name} at ${new Date(lastAction.date).toLocaleTimeString()}`;
+        newLastActionDiv.textContent = `${lastAction.type} on ${lastAction.name}${dateSuffix}`;
       }
       container.before(newLastActionDiv);
     }
