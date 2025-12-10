@@ -24,7 +24,9 @@ function formatActionDate(dateString){
   const date = new Date(dateString);
   if(Number.isNaN(date.getTime())) return '';
   try{
-    return date.toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' });
+    const datePart = date.toLocaleDateString([], { month: 'numeric', day: 'numeric' });
+    const timePart = date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+    return `${datePart} ${timePart}`.trim();
   }catch(err){
     return date.toLocaleString();
   }
