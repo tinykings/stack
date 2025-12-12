@@ -19,8 +19,11 @@ const $ = id => document.getElementById(id);
 const q = (sel, root=document) => root.querySelector(sel);
 
 // Keep focused inputs visible above mobile keyboards (iOS/Android).
+let _currentFocusedField = null;
+
 function ensureModalFieldVisible(field) {
   if (!field || typeof field.scrollIntoView !== 'function') return;
+  _currentFocusedField = field;
   const modal = field.closest ? field.closest('.modal') : null;
 
   const tryScroll = () => {
@@ -49,10 +52,30 @@ function ensureModalFieldVisible(field) {
     }
   };
 
-  // Run twice to catch keyboard animation timing.
+  // Run multiple times to catch keyboard animation timing on different devices.
   setTimeout(tryScroll, 50);
-  setTimeout(tryScroll, 250);
+  setTimeout(tryScroll, 150);
+  setTimeout(tryScroll, 300);
+  setTimeout(tryScroll, 500);
 }
+
+// Listen for viewport resize (keyboard appearing/disappearing) to re-scroll focused field
+if (window.visualViewport) {
+  window.visualViewport.addEventListener('resize', () => {
+    if (_currentFocusedField && document.activeElement === _currentFocusedField) {
+      ensureModalFieldVisible(_currentFocusedField);
+    }
+  });
+}
+
+// Clear focused field reference on blur
+document.addEventListener('focusout', () => {
+  setTimeout(() => {
+    if (!document.activeElement || document.activeElement === document.body) {
+      _currentFocusedField = null;
+    }
+  }, 100);
+});
 
 function uid(){return Math.random().toString(36).slice(2,9)}
 
@@ -742,6 +765,11 @@ function showSpendingForm(section, itemId){
 
   function cleanup(){ overlay.remove(); }
 
+  // Ensure fields stay visible above keyboard when focused
+  document.getElementById('_spend_name').addEventListener('focus', (e) => {
+    ensureModalFieldVisible(e.target);
+  });
+
   // Select all on focus for amount field
   document.getElementById('_spend_amt').addEventListener('focus', (e) => {
     e.target.select();
@@ -982,6 +1010,11 @@ function showItemForm(section, itemId = null) {
     overlay.remove();
   }
 
+  // Ensure fields stay visible above keyboard when focused
+  document.getElementById('_item_name').addEventListener('focus', (e) => {
+    ensureModalFieldVisible(e.target);
+  });
+
   // Clear amount fields on focus for easier editing
   document.getElementById('_item_amount').addEventListener('focus', (e) => {
     e.target.select();
@@ -990,6 +1023,14 @@ function showItemForm(section, itemId = null) {
   if (section !== 'accounts') {
     document.getElementById('_item_needed_amount').addEventListener('focus', (e) => {
       e.target.select();
+      ensureModalFieldVisible(e.target);
+    });
+  }
+
+  // Add scroll visibility for due field (date/number inputs)
+  const dueField = document.getElementById('_item_due');
+  if (dueField && (dueField.type === 'date' || dueField.type === 'number')) {
+    dueField.addEventListener('focus', (e) => {
       ensureModalFieldVisible(e.target);
     });
   }
