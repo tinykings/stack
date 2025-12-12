@@ -18,6 +18,42 @@ let isSavingToGist = false; // Flag to prevent auto-refresh during save
 const $ = id => document.getElementById(id);
 const q = (sel, root=document) => root.querySelector(sel);
 
+// Keep focused inputs visible above mobile keyboards (iOS/Android).
+function ensureModalFieldVisible(field) {
+  if (!field || typeof field.scrollIntoView !== 'function') return;
+  const modal = field.closest ? field.closest('.modal') : null;
+
+  const tryScroll = () => {
+    try {
+      field.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
+    } catch (e) {
+      // Older Safari / non-supporting browsers
+      try { field.scrollIntoView(true); } catch (err) { /* ignore */ }
+    }
+
+    // If we have VisualViewport, ensure field is inside the *visible* area
+    // (accounting for on-screen keyboard shrinking the visual viewport).
+    if (!modal || !window.visualViewport) return;
+    const vv = window.visualViewport;
+    const fieldRect = field.getBoundingClientRect();
+    const modalRect = modal.getBoundingClientRect();
+
+    const padding = 12;
+    const visibleTop = Math.max(modalRect.top, 0) + padding;
+    const visibleBottom = Math.min(modalRect.bottom, vv.height) - padding;
+
+    if (fieldRect.bottom > visibleBottom) {
+      modal.scrollTop += (fieldRect.bottom - visibleBottom);
+    } else if (fieldRect.top < visibleTop) {
+      modal.scrollTop -= (visibleTop - fieldRect.top);
+    }
+  };
+
+  // Run twice to catch keyboard animation timing.
+  setTimeout(tryScroll, 50);
+  setTimeout(tryScroll, 250);
+}
+
 function uid(){return Math.random().toString(36).slice(2,9)}
 
 function formatActionDate(dateString){
@@ -707,7 +743,10 @@ function showSpendingForm(section, itemId){
   function cleanup(){ overlay.remove(); }
 
   // Select all on focus for amount field
-  document.getElementById('_spend_amt').addEventListener('focus', (e) => e.target.select());
+  document.getElementById('_spend_amt').addEventListener('focus', (e) => {
+    e.target.select();
+    ensureModalFieldVisible(e.target);
+  });
 
   // session remember: default account selection stored in sessionStorage
   try{
@@ -813,7 +852,10 @@ function showEditAmountForm(section, itemId, currentAmount) {
   }
 
   // Select all on focus for amount field
-  document.getElementById('_edit_amount').addEventListener('focus', (e) => e.target.select());
+  document.getElementById('_edit_amount').addEventListener('focus', (e) => {
+    e.target.select();
+    ensureModalFieldVisible(e.target);
+  });
 
   document.getElementById('_edit_amount_cancel').addEventListener('click', () => cleanup());
   overlay.addEventListener('click', (e) => {
@@ -941,9 +983,15 @@ function showItemForm(section, itemId = null) {
   }
 
   // Clear amount fields on focus for easier editing
-  document.getElementById('_item_amount').addEventListener('focus', (e) => e.target.select());
+  document.getElementById('_item_amount').addEventListener('focus', (e) => {
+    e.target.select();
+    ensureModalFieldVisible(e.target);
+  });
   if (section !== 'accounts') {
-    document.getElementById('_item_needed_amount').addEventListener('focus', (e) => e.target.select());
+    document.getElementById('_item_needed_amount').addEventListener('focus', (e) => {
+      e.target.select();
+      ensureModalFieldVisible(e.target);
+    });
   }
 
   document.getElementById('_item_cancel').addEventListener('click', () => cleanup());
