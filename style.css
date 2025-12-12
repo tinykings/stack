@@ -263,10 +263,11 @@ body {
   inset:0;
   background:rgba(0,0,0,0.5);
   display:flex;
-  align-items:flex-end;
+  align-items:flex-start;
   justify-content:center;
   z-index:9999;
   padding:0;
+  padding-top:env(safe-area-inset-top);
   animation:fadeIn 0.2s ease;
 }
 
@@ -275,34 +276,37 @@ body {
   to { opacity:1; }
 }
 
-@keyframes slideUp {
-  from { transform:translateY(100%); }
+@keyframes slideDown {
+  from { transform:translateY(-100%); }
   to { transform:translateY(0); }
 }
 
 .modal{
   background:var(--surface-color);
   padding:20px;
-  padding-bottom:calc(20px + env(safe-area-inset-bottom));
-  border-radius:20px 20px 0 0;
+  padding-top:calc(20px + env(safe-area-inset-top));
+  border-radius:0 0 20px 20px;
   width:100%;
   max-width:500px;
   max-height:90vh;
   overflow-y:auto;
   color:inherit;
-  box-shadow:0 -4px 30px rgba(0,0,0,0.3);
-  animation:slideUp 0.25s ease;
+  box-shadow:0 4px 30px rgba(0,0,0,0.3);
+  animation:slideDown 0.25s ease;
 }
 
 @media (min-width:600px){
   .modal-overlay{
     align-items:center;
     padding:20px;
+    padding-top:20px;
   }
   .modal{
     border-radius:20px;
+    padding-top:20px;
     padding-bottom:20px;
     max-height:calc(100vh - 40px);
+    animation:slideUp 0.25s ease;
   }
   @keyframes slideUp {
     from { transform:translateY(20px); opacity:0; }
