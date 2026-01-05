@@ -976,6 +976,7 @@ function showItemForm(section, itemId = null) {
             await saveToGist(false, true);
             // Close the form
             cleanup();
+            window.location.reload();
           }
         }
       });
