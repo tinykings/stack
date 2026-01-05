@@ -652,7 +652,11 @@ async function loadFromGist(silent = false){
   if(!silent) setStatus('Loading from gist...');
   try{
     const headers = token ? { 'Authorization': `token ${token}`, 'Accept': 'application/vnd.github+json' } : { 'Accept': 'application/vnd.github+json' };
-    const res = await fetch(`https://api.github.com/gists/${gistId}`, { headers });
+    // Add timestamp and cache: 'no-store' to bypass browser/GitHub caching
+    const res = await fetch(`https://api.github.com/gists/${gistId}?t=${Date.now()}`, { 
+      headers,
+      cache: 'no-store'
+    });
     const data = await res.json();
     if(res.ok){
       // find file named budget-data.json
@@ -973,7 +977,7 @@ function showItemForm(section, itemId = null) {
             saveLocal();
             render(); // Update main UI
             // Wait for gist save to complete
-            await saveToGist(false, true);
+            await autosaveToGist();
             // Close the form
             cleanup();
             window.location.reload();
