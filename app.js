@@ -972,11 +972,10 @@ function showItemForm(section, itemId = null) {
             item.spent.splice(index, 1);
             saveLocal();
             render(); // Update main UI
-            // Wait for gist save to complete before reopening form
+            // Wait for gist save to complete
             await saveToGist(false, true);
-            // Re-open the form to refresh the list
+            // Close the form
             cleanup();
-            showItemForm(section, itemId);
           }
         }
       });
