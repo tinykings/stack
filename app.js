@@ -18,7 +18,12 @@ let isSavingToGist = false; // Flag to prevent auto-refresh during save
 const $ = id => document.getElementById(id);
 const q = (sel, root=document) => root.querySelector(sel);
 
-function uid(){return Math.random().toString(36).slice(2,9)}
+function uid(){
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  return Math.random().toString(36).slice(2,9);
+}
 
 function formatActionDate(dateString){
   const date = new Date(dateString);
@@ -80,9 +85,6 @@ function saveLocal(){
 }
 
 // Render
-function renderBalances(){
-  // Accounts rendering is now handled in renderLists
-}
 
 // Replace your renderLists() function with this updated version:
 
@@ -329,7 +331,7 @@ function animateNumberChange(element, startValue, endValue, duration, direction)
   requestAnimationFrame(animate);
 }
 
-function render(){ renderBalances(); renderLists(); computeTotals(); }
+function render(){ renderLists(); computeTotals(); }
 
 function escapeHtml(text){ return (text+'').replace(/[&<>"]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;","\"":"&quot;"})[c]); }
 
