@@ -41,7 +41,7 @@ function formatActionDate(dateString){
 function loadLocal(){
   const raw = localStorage.getItem(STORAGE_KEY);
   if(raw){
-    try{ state = JSON.parse(raw); }
+    try{ state = JSON.parse(raw); } 
     catch(e){ console.warn('Invalid local data', e); }
   }
   if (state.items) {
@@ -86,8 +86,6 @@ function saveLocal(){
 
 // Render
 
-// Replace your renderLists() function with this updated version:
-
 function renderLists(){
   ['accounts','budget','bills','goals'].forEach(section=>{
     const container = document.querySelector(`.list-items[data-section="${section}"]`);
@@ -127,9 +125,11 @@ function renderLists(){
         const amountClass = acc.isPositive ? 'asset' : 'liability';
         
         div.innerHTML = `
-          <div class="item-info item-clickable" data-id="${acc.id}" data-section="accounts">
-            <div class="item-name">${escapeHtml(acc.name)}</div>
-            <div class="item-amount ${amountClass}">$${Number(acc.amount).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
+          <div class="item-content item-clickable" data-id="${acc.id}" data-section="accounts">
+            <div class="item-info">
+              <div class="item-name">${escapeHtml(acc.name)}</div>
+              <div class="item-amount ${amountClass}">$${Number(acc.amount).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
+            </div>
           </div>
         `;
         
@@ -243,20 +243,22 @@ function renderLists(){
 
       // Only show Spend button if enableSpending is not explicitly false
       const showSpendButton = item.enableSpending !== false;
-      const spendButtonHTML = showSpendButton ? `
-        <div class="item-actions">
-          <button class="addSpendBtn" data-id="${item.id}" data-section="${section}">Spend</button>
+      const actionsHTML = showSpendButton ? `
+        <div class="item-actions-inline">
+          <button class="icon-action-btn spend" data-action="spend" data-id="${item.id}" data-section="${section}" aria-label="Spend">➖</button>
         </div>
       ` : '';
 
       div.innerHTML = `
-        <div class="item-info item-clickable" data-id="${item.id}" data-section="${section}">
-          <div class="item-name">${escapeHtml(item.name)}</div>
-          <div class="item-amount ${amountClass}">$${Math.abs(remaining).toFixed(2)}</div>
+        <div class="item-content item-clickable" data-id="${item.id}" data-section="${section}">
+          <div class="item-info">
+            <div class="item-name">${escapeHtml(item.name)}</div>
+            <div class="item-amount ${amountClass}">$${Math.abs(remaining).toFixed(2)}</div>
+          </div>
           ${metaHTML}
           ${progressHTML}
         </div>
-        ${spendButtonHTML}
+        ${actionsHTML}
       `;
 
       container.appendChild(div);
@@ -333,7 +335,7 @@ function animateNumberChange(element, startValue, endValue, duration, direction)
 
 function render(){ renderLists(); computeTotals(); }
 
-function escapeHtml(text){ return (text+'').replace(/[&<>"]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;","\"":"&quot;"})[c]); }
+function escapeHtml(text){ return (text+'').replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;","\"":"&quot;"})[c]); }
 
 // Actions
 function addItem({name,amount,neededAmount,due,section,enableSpending}){
@@ -422,11 +424,117 @@ function addSpending(section, itemId, spendName, spendAmount){
   saveLocal();
 }
 
+// Quick Transfer Logic
+function showTransferForm() {
+  const overlay = document.createElement('div'); overlay.className = 'modal-overlay';
+  const modal = document.createElement('div'); modal.className = 'modal';
+
+  function getOptionsHtml() {
+    let html = '<option value="">-- Select --</option>';
+    // Accounts
+    if (state.accounts && state.accounts.length > 0) {
+      html += '<optgroup label="Accounts">';
+      state.accounts.forEach(acc => {
+        html += `<option value="acc:${acc.id}">${escapeHtml(acc.name)} ($${Number(acc.amount).toFixed(2)})</option>`;
+      });
+      html += '</optgroup>';
+    }
+    // Items
+    ['budget', 'bills', 'goals'].forEach(sec => {
+      const items = state.items[sec];
+      if (items && items.length > 0) {
+        html += `<optgroup label="${sec.charAt(0).toUpperCase() + sec.slice(1)}">`;
+        items.forEach(item => {
+          const totalSpent = (item.spent || []).reduce((a, b) => a + Number(b.amount || 0), 0);
+          const remaining = Number(item.amount) - totalSpent;
+          html += `<option value="${sec}:${item.id}">${escapeHtml(item.name)} (Rem: $${remaining.toFixed(2)})</option>`;
+        });
+        html += '</optgroup>';
+      }
+    });
+    return html;
+  }
+
+  modal.innerHTML = `
+    <h3>Transfer Funds</h3>
+    <label>From<br><select id="_transfer_from">${getOptionsHtml()}</select></label>
+    <label>To<br><select id="_transfer_to">${getOptionsHtml()}</select></label>
+    <label>Amount<br><input id="_transfer_amt" type="number" step="0.01" placeholder="0.00"></label>
+    <div class="actions">
+      <button id="_transfer_cancel">Cancel</button>
+      <button id="_transfer_ok">Transfer</button>
+    </div>
+  `;
+  overlay.appendChild(modal);
+  document.body.appendChild(overlay);
+
+  setTimeout(() => document.getElementById('_transfer_amt').focus(), 20);
+
+  function cleanup() { overlay.remove(); }
+  document.getElementById('_transfer_cancel').addEventListener('click', cleanup);
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) cleanup(); });
+
+  document.getElementById('_transfer_ok').addEventListener('click', () => {
+    const fromVal = document.getElementById('_transfer_from').value;
+    const toVal = document.getElementById('_transfer_to').value;
+    const amt = parseFloat(document.getElementById('_transfer_amt').value);
+
+    if (!fromVal || !toVal || isNaN(amt) || amt <= 0) {
+      alert('Please select both items and enter a valid amount.');
+      return;
+    }
+    if (fromVal === toVal) {
+      alert('Cannot transfer to the same item.');
+      return;
+    }
+
+    const [fromSec, fromId] = fromVal.split(':');
+    const [toSec, toId] = toVal.split(':');
+
+    let fromItem, toItem;
+
+    if (fromSec === 'acc') fromItem = state.accounts.find(a => a.id === fromId);
+    else fromItem = state.items[fromSec].find(i => i.id === fromId);
+
+    if (toSec === 'acc') toItem = state.accounts.find(a => a.id === toId);
+    else toItem = state.items[toSec].find(i => i.id === toId);
+
+    if (!fromItem || !toItem) {
+      alert('Error finding items.');
+      return;
+    }
+
+    // Process "From"
+    if (fromSec === 'acc') {
+      if (fromItem.isPositive) fromItem.amount -= amt;
+      else fromItem.amount += amt; // Increase debt
+    } else {
+      fromItem.amount -= amt;
+    }
+
+    // Process "To"
+    if (toSec === 'acc') {
+      if (toItem.isPositive) toItem.amount += amt;
+      else toItem.amount -= amt; // Decrease debt
+    } else {
+      toItem.amount += amt;
+    }
+
+    saveLocal();
+    render();
+    autosaveToGist();
+    cleanup();
+  });
+}
+
 // UI wiring
 function setupUI(){
   loadLocal(); render();
 
-
+  const transferBtn = $('transfer-btn');
+  if (transferBtn) {
+    transferBtn.addEventListener('click', showTransferForm);
+  }
 
   // per-section add buttons (now includes accounts)
   document.querySelectorAll('.addItemSectionBtn').forEach(btn=>{
@@ -438,15 +546,28 @@ function setupUI(){
 
   document.querySelectorAll('.list-items').forEach(container=>{
     container.addEventListener('click', e=>{
-      const target = e.target.closest('.item-clickable, .addSpendBtn');
-      if(target){
-        const id = target.dataset.id;
-        const section = target.dataset.section;
-        if(target.classList.contains('addSpendBtn')){
+      // Handle inline actions
+      const actionBtn = e.target.closest('.icon-action-btn');
+      if(actionBtn){
+        const id = actionBtn.dataset.id;
+        const section = actionBtn.dataset.section;
+        const action = actionBtn.dataset.action;
+        
+        if(action === 'spend'){
           showSpendingForm(section, id);
-        } else if(target.classList.contains('item-clickable')){
+        } else if(action === 'edit'){
           showItemForm(section, id);
         }
+        return;
+      }
+
+      // Handle item click (optional, maybe show details or edit if no specific button clicked)
+      const itemClickable = e.target.closest('.item-clickable');
+      if(itemClickable){
+        const id = itemClickable.dataset.id;
+        const section = itemClickable.dataset.section;
+        // For now, clicking the body also opens edit/details, or we could do nothing
+        showItemForm(section, id); 
       }
     });
   });
@@ -1079,8 +1200,58 @@ function setupAutoRefresh() {
   });
 }
 
+// Theme Logic
+function setupTheme(){
+  const themeBtn = $('theme-btn');
+  const PREF_KEY = 'theme_preference';
+  
+  // 3 states: 'dark', 'light', or null (system)
+  // Simple toggle: if system is dark -> toggle to light. if system is light -> toggle to dark.
+  // Actually, let's just cycle: system -> light -> dark -> system? 
+  // Or simpler: just toggle dark/light class on body, default based on system.
+  
+  function applyTheme(theme){
+    document.body.classList.remove('light-theme', 'dark-theme');
+    if(theme === 'light'){
+      document.body.classList.add('light-theme');
+      if(themeBtn) themeBtn.textContent = '☀️ Light Mode';
+    } else if(theme === 'dark'){
+      document.body.classList.add('dark-theme');
+      if(themeBtn) themeBtn.textContent = '🌑 Dark Mode';
+    } else {
+      // System default
+      if(themeBtn) themeBtn.textContent = '🌓 System Default';
+    }
+  }
+
+  let currentTheme = localStorage.getItem(PREF_KEY);
+  applyTheme(currentTheme);
+
+  if(themeBtn){
+    themeBtn.addEventListener('click', ()=>{
+      if(!currentTheme){
+        // was system, go to explicit opposite of system or just default to light/dark cycle?
+        // let's do: System -> Light -> Dark -> System
+        currentTheme = 'light';
+      } else if(currentTheme === 'light'){
+        currentTheme = 'dark';
+      } else {
+        currentTheme = null; // back to system
+      }
+      
+      if(currentTheme){
+        localStorage.setItem(PREF_KEY, currentTheme);
+      } else {
+        localStorage.removeItem(PREF_KEY);
+      }
+      applyTheme(currentTheme);
+    });
+  }
+}
+
 // Init
   setupUI();
+  setupTheme();
   setupAutoRefresh();
   setupInstallBanner();
   if (localStorage.getItem(GIST_ID_KEY) && localStorage.getItem(GIST_TOKEN_KEY)) {
