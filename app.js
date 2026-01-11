@@ -1200,58 +1200,8 @@ function setupAutoRefresh() {
   });
 }
 
-// Theme Logic
-function setupTheme(){
-  const themeBtn = $('theme-btn');
-  const PREF_KEY = 'theme_preference';
-  
-  // 3 states: 'dark', 'light', or null (system)
-  // Simple toggle: if system is dark -> toggle to light. if system is light -> toggle to dark.
-  // Actually, let's just cycle: system -> light -> dark -> system? 
-  // Or simpler: just toggle dark/light class on body, default based on system.
-  
-  function applyTheme(theme){
-    document.body.classList.remove('light-theme', 'dark-theme');
-    if(theme === 'light'){
-      document.body.classList.add('light-theme');
-      if(themeBtn) themeBtn.textContent = '☀️ Light Mode';
-    } else if(theme === 'dark'){
-      document.body.classList.add('dark-theme');
-      if(themeBtn) themeBtn.textContent = '🌑 Dark Mode';
-    } else {
-      // System default
-      if(themeBtn) themeBtn.textContent = '🌓 System Default';
-    }
-  }
-
-  let currentTheme = localStorage.getItem(PREF_KEY);
-  applyTheme(currentTheme);
-
-  if(themeBtn){
-    themeBtn.addEventListener('click', ()=>{
-      if(!currentTheme){
-        // was system, go to explicit opposite of system or just default to light/dark cycle?
-        // let's do: System -> Light -> Dark -> System
-        currentTheme = 'light';
-      } else if(currentTheme === 'light'){
-        currentTheme = 'dark';
-      } else {
-        currentTheme = null; // back to system
-      }
-      
-      if(currentTheme){
-        localStorage.setItem(PREF_KEY, currentTheme);
-      } else {
-        localStorage.removeItem(PREF_KEY);
-      }
-      applyTheme(currentTheme);
-    });
-  }
-}
-
 // Init
   setupUI();
-  setupTheme();
   setupAutoRefresh();
   setupInstallBanner();
   if (localStorage.getItem(GIST_ID_KEY) && localStorage.getItem(GIST_TOKEN_KEY)) {
