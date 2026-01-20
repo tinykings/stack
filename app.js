@@ -459,7 +459,7 @@ function showTransferForm() {
     <h3>Transfer Funds</h3>
     <label>From<br><select id="_transfer_from">${getOptionsHtml()}</select></label>
     <label>To<br><select id="_transfer_to">${getOptionsHtml()}</select></label>
-    <label>Amount<br><input id="_transfer_amt" type="number" step="0.01" placeholder="0.00"></label>
+    <label>Amount<br><input id="_transfer_amt" type="number" step="0.01" inputmode="decimal" placeholder="0.00"></label>
     <div class="actions">
       <button id="_transfer_cancel">Cancel</button>
       <button id="_transfer_ok">Transfer</button>
@@ -821,7 +821,7 @@ function showSpendingForm(section, itemId){
   modal.innerHTML = `
     <h3>Add spending to "${escapeHtml(item.name)}"</h3>
     <label>Name<br><input id="_spend_name" type="text" placeholder="e.g. Groceries"></label>
-    <label>Amount<br><input id="_spend_amt" type="number" step="0.01" placeholder="0.00"></label>
+    <label>Amount<br><input id="_spend_amt" type="number" step="0.01" inputmode="decimal" placeholder="0.00"></label>
     <label>Charge to account<br><select id="_spend_account">${accountOptions}</select></label>
     <div class="actions"><button id="_spend_cancel">Cancel</button><button id="_spend_ok">Add</button></div>
   `;
@@ -924,7 +924,7 @@ function showEditAmountForm(section, itemId, currentAmount) {
 
   modal.innerHTML = `
     <h3>${title}</h3>
-    <label>Current Amount<br><input id="_edit_amount" type="number" step="0.01" placeholder="0.00" value="${Number(currentAmount).toFixed(2)}"></label>
+    <label>Current Amount<br><input id="_edit_amount" type="number" step="0.01" inputmode="decimal" placeholder="0.00" value="${Number(currentAmount).toFixed(2)}"></label>
     <div class="actions">
       <button id="_edit_amount_cancel">Cancel</button>
       <button id="_edit_amount_ok">Save</button>
@@ -1002,7 +1002,7 @@ function showItemForm(section, itemId = null) {
       </label>`;
   } else if (section === 'bills') {
     const value = isEdit && item && item.due ? item.due.value : '';
-    dueControlHtml = `<label>Day of month<br><input id="_item_due" type="number" min="1" max="31" placeholder="1-31" value="${value}"></label>`;
+    dueControlHtml = `<label>Day of month<br><input id="_item_due" type="number" min="1" max="31" inputmode="numeric" placeholder="1-31" value="${value}"></label>`;
   } else if (section === 'goals') {
     const value = isEdit && item && item.due ? item.due.value : '';
     dueControlHtml = `<label>Date<br><input id="_item_due" type="date" value="${value}"></label>`;
@@ -1047,8 +1047,8 @@ function showItemForm(section, itemId = null) {
   modal.innerHTML = `
     <h3>${title}</h3>
     <label>Name<br><input id="_item_name" type="text" placeholder="Name" value="${isEdit && item ? escapeHtml(item.name) : ''}"></label>
-    <label>Current Amount<br><input id="_item_amount" type="number" step="0.01" placeholder="0.00" value="${currentAmountValue}"></label>
-    ${section !== 'accounts' ? `<label>Needed Amount<br><input id="_item_needed_amount" type="number" step="0.01" placeholder="0.00" value="${isEdit && item && item.neededAmount ? Number(item.neededAmount).toFixed(2) : ''}"></label>` : ''}
+    <label>Current Amount<br><input id="_item_amount" type="number" step="0.01" inputmode="decimal" placeholder="0.00" value="${currentAmountValue}"></label>
+    ${section !== 'accounts' ? `<label>Needed Amount<br><input id="_item_needed_amount" type="number" step="0.01" inputmode="decimal" placeholder="0.00" value="${isEdit && item && item.neededAmount ? Number(item.neededAmount).toFixed(2) : ''}"></label>` : ''}
     ${dueControlHtml}
     ${enableSpendingHtml}
     ${historyHtml}
