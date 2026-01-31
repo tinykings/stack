@@ -43,7 +43,7 @@ html { scroll-behavior: smooth; }
 body {
   color-scheme: dark;
   font-family: var(--font);
-  font-size: 14px;
+  font-size: 15px;
   line-height: 1.5;
   margin: 0;
   padding: 16px 16px calc(env(safe-area-inset-bottom) + var(--header-height) + 20px) 16px;
@@ -104,7 +104,7 @@ body {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -115,7 +115,7 @@ body {
 
 .section-total {
   font-family: var(--mono);
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 500;
   color: var(--text-secondary);
   margin-left: auto;
@@ -157,7 +157,7 @@ body {
 
 .last-action {
   font-family: var(--mono);
-  font-size: 11px;
+  font-size: 12px;
   color: var(--text-dim);
   padding: 6px 8px;
   margin: 0 0 10px 0;
@@ -210,7 +210,7 @@ body {
 
 .item .item-name {
   font-weight: 500;
-  font-size: 14px;
+  font-size: 15px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -219,7 +219,7 @@ body {
 
 .item .item-amount {
   font-family: var(--mono);
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
   white-space: nowrap;
   letter-spacing: -0.03em;
@@ -234,7 +234,7 @@ body {
 
 .item .meta {
   color: var(--text-dim);
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.3;
   font-family: var(--mono);
   letter-spacing: -0.01em;
@@ -376,7 +376,7 @@ body {
 .modal label {
   display: block;
   margin-bottom: 14px;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.06em;
@@ -568,7 +568,7 @@ body {
 
 .backup-section h4 {
   margin: 0;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.06em;
@@ -607,7 +607,7 @@ body {
 
 .backup-section small {
   color: var(--text-dim);
-  font-size: 11px;
+  font-size: 12px;
   text-align: center;
 }
 
@@ -624,7 +624,7 @@ body {
 
 .install-app-section small {
   color: var(--text-dim);
-  font-size: 11px;
+  font-size: 12px;
   text-align: center;
 }
 
@@ -641,7 +641,7 @@ body {
 
 .update-section small {
   color: var(--text-dim);
-  font-size: 11px;
+  font-size: 12px;
   text-align: center;
 }
 
@@ -715,7 +715,7 @@ body {
 }
 
 .available-label {
-  font-size: 10px;
+  font-size: 12px;
   color: var(--text-dim);
   text-transform: uppercase;
   letter-spacing: 0.1em;
@@ -768,7 +768,7 @@ body {
 /* ---- Spend History ---- */
 
 .modal h4 {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.06em;
@@ -888,7 +888,7 @@ body {
 
 .install-method h4 {
   margin: 0 0 8px 0;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
   color: var(--amber);
   text-transform: uppercase;
@@ -916,7 +916,7 @@ body {
 }
 
 .install-note {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--text-dim);
   text-align: center;
   margin: 10px 0 0 0;
