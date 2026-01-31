@@ -311,9 +311,9 @@ function animateNumberChange(element, startValue, endValue, duration, direction)
   const originalColor = element.style.color; // Store original color
 
   if (direction === 'up') {
-    element.style.color = '#b4ffb4'; // Green for up
+    element.style.color = '#7bc48e'; // Green for up
   } else if (direction === 'down') {
-    element.style.color = '#ffb4b4'; // Red for down
+    element.style.color = '#d47272'; // Red for down
   }
 
   function animate(currentTime) {
@@ -327,7 +327,7 @@ function animateNumberChange(element, startValue, endValue, duration, direction)
     if (progress < 1) {
       requestAnimationFrame(animate);
     } else {
-      element.style.color = '#ffef99'; // Restore to the default color after animation
+      element.style.color = '#c8a44e'; // Restore to amber after animation
     }
   }
   requestAnimationFrame(animate);
