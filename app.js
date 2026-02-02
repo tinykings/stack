@@ -485,6 +485,10 @@ function showTransferForm() {
   setTimeout(() => document.getElementById('_transfer_amt').focus(), 20);
 
   function cleanup() { overlay.remove(); }
+
+  modal.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); document.getElementById('_transfer_ok').click(); }
+  });
   document.getElementById('_transfer_cancel').addEventListener('click', cleanup);
   overlay.addEventListener('click', (e) => { if (e.target === overlay) cleanup(); });
 
@@ -852,6 +856,10 @@ function showSpendingForm(section, itemId){
 
   function cleanup(){ overlay.remove(); }
 
+  modal.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); document.getElementById('_spend_ok').click(); }
+  });
+
   // Select all on focus for amount field
   document.getElementById('_spend_amt').addEventListener('focus', (e) => e.target.select());
 
@@ -949,6 +957,10 @@ function showEditAmountForm(section, itemId, currentAmount) {
   function cleanup() {
     overlay.remove();
   }
+
+  modal.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); document.getElementById('_edit_amount_ok').click(); }
+  });
 
   // Select all on focus for amount field
   document.getElementById('_edit_amount').addEventListener('focus', (e) => e.target.select());
@@ -1077,6 +1089,10 @@ function showItemForm(section, itemId = null) {
   function cleanup() {
     overlay.remove();
   }
+
+  modal.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); document.getElementById('_item_ok').click(); }
+  });
 
   // Clear amount fields on focus for easier editing
   document.getElementById('_item_amount').addEventListener('focus', (e) => e.target.select());
