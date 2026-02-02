@@ -6,8 +6,8 @@ const GIST_TOKEN_KEY = 'budget_gist_token';
 let state = {
   balances: { checking: 0, savings: 0, credit: 0 },
   accounts: [], // [{id, name, amount, isPositive}]
-  accounts_lastAction: null, // Last action for accounts section
-  items: { accounts: [], budget: [], bills: [], goals: [] }
+  items: { accounts: [], budget: [], bills: [], goals: [] },
+  actionHistory: [] // Last 10 actions: [{type, name, section, amount?, date}]
 };
 let lastAvailableAmount = 0; // New global variable
 let isSavingToGist = false; // Flag to prevent auto-refresh during save
@@ -23,6 +23,12 @@ function uid(){
     return crypto.randomUUID();
   }
   return Math.random().toString(36).slice(2,9);
+}
+
+function recordAction(action){
+  if (!Array.isArray(state.actionHistory)) state.actionHistory = [];
+  state.actionHistory.unshift(action);
+  if (state.actionHistory.length > 10) state.actionHistory.length = 10;
 }
 
 function formatActionDate(dateString){
@@ -44,11 +50,18 @@ function loadLocal(){
     try{ state = JSON.parse(raw); } 
     catch(e){ console.warn('Invalid local data', e); }
   }
+  if (!Array.isArray(state.actionHistory)) {
+    state.actionHistory = [];
+  }
+  // Clean up legacy per-section lastAction fields
+  delete state.accounts_lastAction;
+  if (state.items) {
+    Object.keys(state.items).forEach(k => {
+      if (k.endsWith('_lastAction')) delete state.items[k];
+    });
+  }
   if (state.items) {
     Object.keys(state.items).forEach(section=>{
-      if (state.items[section + '_lastAction'] === undefined) {
-        state.items[section + '_lastAction'] = null;
-      }
       if (Array.isArray(state.items[section])) { // Check if it's an array of items
         (state.items[section]||[]).forEach(it=>{
           if(it && it.neededAmount === undefined && section !== 'accounts'){
@@ -66,9 +79,6 @@ function loadLocal(){
         });
       }
     });
-  }
-  if (state.accounts_lastAction === undefined) {
-    state.accounts_lastAction = null;
   }
   const gid = localStorage.getItem(GIST_ID_KEY);
   const tok = localStorage.getItem(GIST_TOKEN_KEY);
@@ -90,28 +100,6 @@ function renderLists(){
   ['accounts','budget','bills','goals'].forEach(section=>{
     const container = document.querySelector(`.list-items[data-section="${section}"]`);
     container.innerHTML = '';
-
-    const lastActionDiv = document.querySelector(`.last-action[data-section="${section}"]`);
-    if (lastActionDiv) {
-      lastActionDiv.remove();
-    }
-
-    const lastAction = section === 'accounts' 
-      ? state.accounts_lastAction 
-      : state.items[section + '_lastAction'];
-    if (lastAction) {
-      const newLastActionDiv = document.createElement('div');
-      newLastActionDiv.className = 'last-action';
-      newLastActionDiv.dataset.section = section;
-      const formattedActionDate = formatActionDate(lastAction.date);
-      const dateSuffix = formattedActionDate ? ` at ${formattedActionDate}` : '';
-      if (lastAction.type === 'spend') {
-        newLastActionDiv.textContent = `${lastAction.type} - ${lastAction.name} - $${lastAction.amount}${dateSuffix}`;
-      } else {
-        newLastActionDiv.textContent = `${lastAction.type} - ${lastAction.name}${dateSuffix}`;
-      }
-      container.before(newLastActionDiv);
-    }
 
     // handle accounts differently (simpler structure)
     if(section === 'accounts'){
@@ -333,7 +321,53 @@ function animateNumberChange(element, startValue, endValue, duration, direction)
   requestAnimationFrame(animate);
 }
 
-function render(){ renderLists(); computeTotals(); }
+function formatActionText(action){
+  const dateSuffix = formatActionDate(action.date) ? ` at ${formatActionDate(action.date)}` : '';
+  if (action.type === 'spend') {
+    return `${action.type} - ${action.name} - $${action.amount}${dateSuffix}`;
+  }
+  return `${action.type} - ${action.name}${dateSuffix}`;
+}
+
+function renderFooterAction(){
+  const el = $('footer-last-action');
+  if (!el) return;
+  const history = state.actionHistory || [];
+  if (history.length === 0) {
+    el.textContent = '';
+    el.style.display = 'none';
+    return;
+  }
+  el.style.display = '';
+  el.textContent = formatActionText(history[0]);
+}
+
+function showHistoryModal(){
+  const history = state.actionHistory || [];
+  if (history.length === 0) return;
+
+  const overlay = document.createElement('div'); overlay.className = 'modal-overlay';
+  const modal = document.createElement('div'); modal.className = 'modal';
+
+  let listHtml = '<ul class="history-list">';
+  history.forEach(action => {
+    listHtml += `<li>${escapeHtml(formatActionText(action))}</li>`;
+  });
+  listHtml += '</ul>';
+
+  modal.innerHTML = `
+    <h3>Recent Changes</h3>
+    ${listHtml}
+    <div class="actions"><button id="_history_close">Close</button></div>
+  `;
+  overlay.appendChild(modal);
+  document.body.appendChild(overlay);
+
+  document.getElementById('_history_close').addEventListener('click', () => overlay.remove());
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+}
+
+function render(){ renderLists(); computeTotals(); renderFooterAction(); }
 
 function escapeHtml(text){ return (text+'').replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;","\"":"&quot;"})[c]); }
 
@@ -343,22 +377,14 @@ function addItem({name,amount,neededAmount,due,section,enableSpending}){
     // accounts have different structure: name, amount, isPositive
     state.accounts = state.accounts || [];
     state.accounts.push({id:uid(), name, amount: parseFloat(amount)||0, isPositive: due === true}); // due used as isPositive flag
-    state.accounts_lastAction = {
-      type: 'add',
-      name,
-      date: new Date().toISOString()
-    };
+    recordAction({ type: 'add', name, section: 'accounts', date: new Date().toISOString() });
   } else {
     state.items = state.items || {};
     state.items[section] = state.items[section] || [];
     const finalNeededAmount = neededAmount !== undefined ? parseFloat(neededAmount) : parseFloat(amount);
     const spendingEnabled = enableSpending !== undefined ? enableSpending : false;
     state.items[section].push({id:uid(),name,amount: parseFloat(amount)||0,neededAmount: finalNeededAmount||0,due,spent:[],enableSpending: spendingEnabled});
-    state.items[section + '_lastAction'] = {
-      type: 'add',
-      name,
-      date: new Date().toISOString()
-    };
+    recordAction({ type: 'add', name, section, date: new Date().toISOString() });
   }
   saveLocal(); render();
   autosaveToGist();
@@ -371,11 +397,7 @@ function updateItem(section, id, {name, amount, due, neededAmount, enableSpendin
       item.name = name;
       item.amount = amount;
       item.isPositive = due;
-      state.accounts_lastAction = {
-        type: 'edit',
-        name: item.name,
-        date: new Date().toISOString()
-      };
+      recordAction({ type: 'edit', name: item.name, section: 'accounts', date: new Date().toISOString() });
     }
   } else {
     const item = state.items[section].find(i=>i.id===id);
@@ -385,11 +407,7 @@ function updateItem(section, id, {name, amount, due, neededAmount, enableSpendin
       item.due = due;
       if (neededAmount !== undefined) item.neededAmount = neededAmount;
       if (enableSpending !== undefined) item.enableSpending = enableSpending;
-      state.items[section + '_lastAction'] = {
-        type: 'edit',
-        name: item.name,
-        date: new Date().toISOString()
-      };
+      recordAction({ type: 'edit', name: item.name, section, date: new Date().toISOString() });
     }
   }
   saveLocal(); render();
@@ -415,12 +433,7 @@ function addSpending(section, itemId, spendName, spendAmount){
   // record meta for UI
   state._lastUpdated = now;
   state._lastSpend = { section, itemId, name: spendName, amount: spendAmount, date: now, itemName: item.name };
-  state.items[section + '_lastAction'] = {
-    type: 'spend',
-    name: item.name,
-    amount: spendAmount,
-    date: now
-  };
+  recordAction({ type: 'spend', name: item.name, section, amount: spendAmount, date: now });
   saveLocal();
 }
 
@@ -534,6 +547,11 @@ function setupUI(){
   const transferBtn = $('transfer-btn');
   if (transferBtn) {
     transferBtn.addEventListener('click', showTransferForm);
+  }
+
+  const footerAction = $('footer-last-action');
+  if (footerAction) {
+    footerAction.addEventListener('click', showHistoryModal);
   }
 
   // per-section add buttons (now includes accounts)
@@ -891,22 +909,14 @@ function updateItemAmountAndResetSpent(section, id, newAmount){
     const item = state.accounts.find(a=>a.id===id);
     if(item){
       item.amount = newAmount;
-      state.accounts_lastAction = {
-        type: 'edit amount',
-        name: item.name,
-        date: new Date().toISOString()
-      };
+      recordAction({ type: 'edit amount', name: item.name, section: 'accounts', date: new Date().toISOString() });
     }
   } else {
     const item = state.items[section].find(i=>i.id===id);
     if(item){
       item.amount = newAmount;
       item.spent = []; // Reset spent history
-      state.items[section + '_lastAction'] = {
-        type: 'edit amount',
-        name: item.name,
-        date: new Date().toISOString()
-      };
+      recordAction({ type: 'edit amount', name: item.name, section, date: new Date().toISOString() });
     }
   }
   saveLocal(); render();
