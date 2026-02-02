@@ -322,11 +322,12 @@ function animateNumberChange(element, startValue, endValue, duration, direction)
 }
 
 function formatActionText(action){
-  const dateSuffix = formatActionDate(action.date) ? ` at ${formatActionDate(action.date)}` : '';
+  const ts = formatActionDate(action.date);
+  const prefix = ts ? `${ts}: ` : '';
   if (action.type === 'spend') {
-    return `${action.type} - ${action.name} - $${action.amount}${dateSuffix}`;
+    return `${prefix}${action.type} ${action.name} -$${action.amount}`;
   }
-  return `${action.type} - ${action.name}${dateSuffix}`;
+  return `${prefix}${action.type} ${action.name}`;
 }
 
 function renderFooterAction(){
