@@ -623,36 +623,6 @@ function setupUI(){
     });
   }
 
-  // Update App button - clears cache and force reloads
-  const updateAppBtn = $('update-app-btn');
-  if (updateAppBtn) {
-    updateAppBtn.addEventListener('click', async () => {
-      updateAppBtn.textContent = 'Updating...';
-      updateAppBtn.disabled = true;
-      
-      try {
-        // Clear all caches
-        if ('caches' in window) {
-          const cacheNames = await caches.keys();
-          await Promise.all(cacheNames.map(name => caches.delete(name)));
-        }
-        
-        // Unregister service workers
-        if ('serviceWorker' in navigator) {
-          const registrations = await navigator.serviceWorker.getRegistrations();
-          await Promise.all(registrations.map(reg => reg.unregister()));
-        }
-        
-        // Force reload bypassing cache
-        window.location.reload(true);
-      } catch (err) {
-        console.error('Update failed:', err);
-        // Fallback: just do a hard reload
-        window.location.reload(true);
-      }
-    });
-  }
-
   // Export Data button - downloads state as JSON file
   const exportBtn = $('export-btn');
   if (exportBtn) {
@@ -1225,6 +1195,11 @@ function setupAutoRefresh() {
       autoRefreshFromGist();
     }
   });
+}
+
+// Register service worker
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('./sw.js');
 }
 
 // Init
