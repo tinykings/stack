@@ -904,9 +904,15 @@ body {
 
 .autofill-settings {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr;
   gap: 12px;
   margin-bottom: 16px;
+}
+
+@media (min-width: 420px) {
+  .autofill-settings {
+    grid-template-columns: 1fr 1fr;
+  }
 }
 
 .autofill-header {
