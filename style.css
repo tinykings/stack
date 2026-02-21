@@ -481,8 +481,7 @@ body {
 }
 
 .modal .actions button#_item_ok,
-.modal .actions button#_spend_ok,
-.modal .actions button#_transfer_ok {
+.modal .actions button#_spend_ok {
   background: var(--amber);
   border-color: var(--amber);
   color: #141414;
@@ -490,15 +489,13 @@ body {
 }
 
 .modal .actions button#_item_ok:hover,
-.modal .actions button#_spend_ok:hover,
-.modal .actions button#_transfer_ok:hover {
+.modal .actions button#_spend_ok:hover {
   background: var(--amber-dim);
   border-color: var(--amber-dim);
 }
 
 .modal .actions button#_item_cancel,
-.modal .actions button#_spend_cancel,
-.modal .actions button#_transfer_cancel {
+.modal .actions button#_spend_cancel {
   background: transparent;
   color: var(--text-secondary);
   border-color: var(--border);
