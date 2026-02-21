@@ -7,7 +7,8 @@ let state = {
   balances: { checking: 0, savings: 0, credit: 0 },
   accounts: [], // [{id, name, amount, isPositive}]
   items: { accounts: [], budget: [], bills: [], goals: [] },
-  actionHistory: [] // Last 10 actions: [{type, name, section, amount?, date}]
+  actionHistory: [], // Last 10 actions: [{type, name, section, amount?, date}]
+  paycheckSettings: {} // {nextPayDate: 'YYYY-MM-DD', frequency: 'weekly'|'biweekly'|'monthly'}
 };
 let lastAvailableAmount = 0; // New global variable
 let isSavingToGist = false; // Flag to prevent auto-refresh during save
@@ -52,6 +53,9 @@ function loadLocal(){
   }
   if (!Array.isArray(state.actionHistory)) {
     state.actionHistory = [];
+  }
+  if (!state.paycheckSettings || typeof state.paycheckSettings !== 'object') {
+    state.paycheckSettings = {};
   }
   // Clean up legacy per-section lastAction fields
   delete state.accounts_lastAction;
@@ -325,7 +329,10 @@ function formatActionText(action){
   const ts = formatActionDate(action.date);
   const prefix = ts ? `${ts}: ` : '';
   if (action.type === 'spend') {
-    return `${prefix}${action.type} ${action.name} -$${action.amount}`;
+    return `${prefix}spend ${action.name} -$${action.amount}`;
+  }
+  if (action.type === 'autofill') {
+    return `${prefix}autofill ${action.name} +$${action.amount}`;
   }
   return `${prefix}${action.type} ${action.name}`;
 }
@@ -510,6 +517,9 @@ function setupUI(){
       }
     });
   }
+
+  const autofillBtn = $('autofill-btn');
+  if (autofillBtn) autofillBtn.addEventListener('click', showAutofillModal);
 
   // Export Data button - downloads state as JSON file
   const exportBtn = $('export-btn');
@@ -1041,6 +1051,372 @@ function showItemForm(section, itemId = null) {
       addItem({ name, amount: newAmount, neededAmount: finalNeededAmount, due, section, enableSpending });
     }
 
+    cleanup();
+  });
+}
+
+// ============ PAYCHECK AUTOFILL ============
+
+function advancePayDate(date, frequency) {
+  const d = new Date(date);
+  if (frequency === 'weekly') d.setDate(d.getDate() + 7);
+  else if (frequency === 'biweekly') d.setDate(d.getDate() + 14);
+  else if (frequency === 'monthly') d.setMonth(d.getMonth() + 1);
+  return d;
+}
+
+function getEffectiveNextPayDate(settings) {
+  if (!settings || !settings.nextPayDate || !settings.frequency) return null;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const [y, m, d] = settings.nextPayDate.split('-').map(Number);
+  let payDate = new Date(y, m - 1, d);
+  let guard = 0;
+  while (payDate < today && guard++ < 200) {
+    payDate = advancePayDate(payDate, settings.frequency);
+  }
+  return payDate;
+}
+
+function getNextBillDueDate(dayOfMonth) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const thisMonth = new Date(today.getFullYear(), today.getMonth(), dayOfMonth);
+  if (thisMonth >= today) return thisMonth;
+  return new Date(today.getFullYear(), today.getMonth() + 1, dayOfMonth);
+}
+
+function getItemRemaining(item) {
+  const spent = (item.spent || []).reduce((a, b) => a + Number(b.amount || 0), 0);
+  return Number(item.amount || 0) - spent;
+}
+
+function getAutoFillItems(nextPayDate) {
+  const eligible = [];
+
+  // Bills: next due date falls on or before next paycheck
+  (state.items.bills || []).forEach(item => {
+    if (!item.due || item.due.type !== 'day') return;
+    const dueDay = Number(item.due.value);
+    const nextDue = getNextBillDueDate(dueDay);
+    if (nextDue <= nextPayDate) {
+      const remaining = getItemRemaining(item);
+      const needed = Number(item.neededAmount || item.amount || 0);
+      const gap = needed - remaining;
+      if (gap > 0.005) eligible.push({ item, section: 'bills', gap, dueDate: nextDue });
+    }
+  });
+
+  // Goals: target date is on or before next paycheck
+  (state.items.goals || []).forEach(item => {
+    if (!item.due || item.due.type !== 'date' || !item.due.value) return;
+    const [y, m, d] = item.due.value.split('-').map(Number);
+    const dueDate = new Date(y, m - 1, d);
+    if (dueDate <= nextPayDate) {
+      const remaining = getItemRemaining(item);
+      const needed = Number(item.neededAmount || item.amount || 0);
+      const gap = needed - remaining;
+      if (gap > 0.005) eligible.push({ item, section: 'goals', gap, dueDate });
+    }
+  });
+
+  // Budget: every-check always; every-month if not fully funded
+  (state.items.budget || []).forEach(item => {
+    if (!item.due || item.due.type !== 'recurrence') return;
+    const remaining = getItemRemaining(item);
+    const needed = Number(item.neededAmount || item.amount || 0);
+    const gap = needed - remaining;
+    if (gap <= 0.005) return;
+    const recurrence = item.due.value;
+    if (recurrence === 'every-check' || recurrence === 'every-month') {
+      eligible.push({ item, section: 'budget', gap, recurrence });
+    }
+  });
+
+  return eligible;
+}
+
+// Bills and goals not due before next paycheck — suggest per-check contributions,
+// capped by available funds with soonest items taking priority.
+function getRecommendations(nextPayDate, frequency, availableFunds) {
+  const all = [];
+
+  function countChecks(fromDate, toDate) {
+    let n = 0, d = new Date(fromDate);
+    while (d < toDate && n < 1000) { n++; d = advancePayDate(d, frequency); }
+    return Math.max(1, n);
+  }
+
+  // Future bills (next occurrence after next paycheck)
+  (state.items.bills || []).forEach(item => {
+    if (!item.due || item.due.type !== 'day') return;
+    const nextDue = getNextBillDueDate(Number(item.due.value));
+    if (nextDue <= nextPayDate) return;
+    const gap = Number(item.neededAmount || item.amount || 0) - getItemRemaining(item);
+    if (gap <= 0.005) return;
+    const checksRemaining = countChecks(nextPayDate, nextDue);
+    all.push({ item, section: 'bills', gap: gap / checksRemaining, checksRemaining, dueDate: nextDue });
+  });
+
+  // Future goals
+  (state.items.goals || []).forEach(item => {
+    if (!item.due || item.due.type !== 'date' || !item.due.value) return;
+    const [y, m, d] = item.due.value.split('-').map(Number);
+    const dueDate = new Date(y, m - 1, d);
+    if (dueDate <= nextPayDate) return;
+    const gap = Number(item.neededAmount || item.amount || 0) - getItemRemaining(item);
+    if (gap <= 0.005) return;
+    const checksRemaining = countChecks(nextPayDate, dueDate);
+    all.push({ item, section: 'goals', gap: gap / checksRemaining, checksRemaining, dueDate });
+  });
+
+  // Sort soonest first, then allocate available funds greedily
+  all.sort((a, b) => a.dueDate - b.dueDate);
+  let budget = Math.max(0, availableFunds);
+  return all.reduce((out, rec) => {
+    const capped = Math.min(rec.gap, budget);
+    budget -= capped;
+    if (capped > 0.005) out.push({ ...rec, gap: capped });
+    return out;
+  }, []);
+}
+
+function showAutofillModal() {
+  const settings = state.paycheckSettings || {};
+  const effectiveDate = getEffectiveNextPayDate(settings);
+  const pad = n => String(n).padStart(2, '0');
+  const toDateInput = date => date
+    ? `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
+    : '';
+  const storedPayDate = toDateInput(effectiveDate) || (settings.nextPayDate || '');
+  const storedFreq = settings.frequency || 'biweekly';
+
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  const modal = document.createElement('div');
+  modal.className = 'modal';
+
+  modal.innerHTML = `
+    <h3>Auto Fill</h3>
+    <div class="autofill-settings">
+      <label>Next Paycheck<br>
+        <input id="_af_paydate" type="date" value="${storedPayDate}">
+      </label>
+      <label>Pay Frequency<br>
+        <select id="_af_frequency">
+          <option value="weekly" ${storedFreq === 'weekly' ? 'selected' : ''}>Every week</option>
+          <option value="biweekly" ${storedFreq === 'biweekly' ? 'selected' : ''}>Every two weeks</option>
+          <option value="monthly" ${storedFreq === 'monthly' ? 'selected' : ''}>Every month</option>
+        </select>
+      </label>
+    </div>
+    <div id="_af_items_container"></div>
+    <div class="actions">
+      <button id="_af_cancel">Cancel</button>
+      <button id="_af_fill">Fill Items</button>
+    </div>
+  `;
+  overlay.appendChild(modal);
+  document.body.appendChild(overlay);
+
+  // Build a compact single-line item row
+  // affordable=false → unchecked by default, amount shown in red
+  function buildItemRow(item, gap, metaStr, checked, isRec, affordable = true) {
+    const safeGap = gap.toFixed(2);
+    let amountClass = 'autofill-item-amount';
+    if (isRec) amountClass += ' autofill-item-amount--rec';
+    else if (!affordable) amountClass += ' autofill-item-amount--unaffordable';
+    return `
+      <label class="autofill-item${isRec ? ' autofill-item--rec' : ''}">
+        <input type="checkbox" class="autofill-cb" data-id="${item.id}" data-gap="${safeGap}" ${checked ? 'checked' : ''}>
+        <span class="autofill-rec-name">${escapeHtml(item.name)}</span>
+        <span class="autofill-rec-meta">${escapeHtml(metaStr)}</span>
+        <span class="${amountClass}">+$${safeGap}</span>
+      </label>`;
+  }
+
+  // Build a compact single-line row for recommendations
+  function buildRecRow(item, gap, dueDate, checksRemaining) {
+    const dueFmt = dueDate.toLocaleDateString([], { month: 'short', day: 'numeric', year: '2-digit' });
+    const meta = `${dueFmt} · ${checksRemaining} check${checksRemaining !== 1 ? 's' : ''}`;
+    return buildItemRow(item, gap, meta, true, true, true);
+  }
+
+  function updateFillBtn() {
+    const fillBtn = document.getElementById('_af_fill');
+    if (!fillBtn) return;
+    const hasChecked = modal.querySelectorAll('.autofill-cb:checked').length > 0;
+    fillBtn.disabled = !hasChecked;
+  }
+
+  function updateToggleBtn() {
+    const btn = document.getElementById('_af_toggle_recs');
+    if (!btn) return;
+    const cbs = [...modal.querySelectorAll('.autofill-list--rec .autofill-cb')];
+    if (!cbs.length) return;
+    btn.textContent = cbs.every(cb => cb.checked) ? 'Uncheck All' : 'Check All';
+  }
+
+  function updateTotal() {
+    let total = 0;
+    modal.querySelectorAll('.autofill-cb:checked').forEach(cb => {
+      total += parseFloat(cb.dataset.gap) || 0;
+    });
+    const el = modal.querySelector('.autofill-total-amount');
+    if (el) el.textContent = '$' + total.toFixed(2);
+    updateFillBtn();
+    updateToggleBtn();
+  }
+
+  function renderAutofillItems() {
+    const payDateVal = document.getElementById('_af_paydate').value;
+    const freq = document.getElementById('_af_frequency').value;
+    const container = document.getElementById('_af_items_container');
+
+    if (!payDateVal) {
+      container.innerHTML = '<p class="autofill-hint">Set a paycheck date to see items to fill.</p>';
+      updateFillBtn();
+      return;
+    }
+
+    const [y, m, d] = payDateVal.split('-').map(Number);
+    const nextPayDate = new Date(y, m - 1, d);
+    const eligible = getAutoFillItems(nextPayDate);
+
+    // Allocate available funds across due items in priority order:
+    // 1. Budget every-check  2. Dated items by due date  3. Budget every-month
+    const dueSortKey = e => {
+      if (e.section === 'budget' && e.recurrence === 'every-check') return -Infinity;
+      if (e.section === 'budget' && e.recurrence === 'every-month') return Infinity;
+      return e.dueDate ? e.dueDate.getTime() : 0;
+    };
+    let available = lastAvailableAmount;
+    const affordMap = new Map();
+    [...eligible].sort((a, b) => dueSortKey(a) - dueSortKey(b)).forEach(e => {
+      const canAfford = available >= e.gap - 0.005;
+      if (canAfford) available -= e.gap;
+      affordMap.set(e.item.id, canAfford);
+    });
+
+    // Pass remaining available (after due items) to recommendations
+    const recs = getRecommendations(nextPayDate, freq, available);
+
+    if (eligible.length === 0 && recs.length === 0) {
+      container.innerHTML = '<p class="autofill-hint">All items are funded through your next paycheck.</p>';
+      updateFillBtn();
+      return;
+    }
+
+    const nextPayStr = nextPayDate.toLocaleDateString([], { month: 'short', day: 'numeric' });
+    const bySection = { bills: [], budget: [], goals: [] };
+    eligible.forEach(e => bySection[e.section].push(e));
+    const sectionNames = { bills: 'Bills', budget: 'Budget', goals: 'Goals' };
+
+    let html = '';
+
+    // Due items — checked if affordable, unchecked+red if not
+    if (eligible.length > 0) {
+      html += `<div class="autofill-header">Due by ${escapeHtml(nextPayStr)}</div><div class="autofill-list">`;
+      ['bills', 'budget', 'goals'].forEach(sec => {
+        if (!bySection[sec].length) return;
+        html += `<div class="autofill-section-label">${sectionNames[sec]}</div>`;
+        bySection[sec].forEach(({ item, gap, dueDate, recurrence }) => {
+          let meta = '';
+          if (dueDate) meta = dueDate.toLocaleDateString([], { month: 'short', day: 'numeric' });
+          else if (recurrence === 'every-check') meta = 'every check';
+          else if (recurrence === 'every-month') meta = 'every month';
+          const affordable = affordMap.get(item.id) !== false;
+          html += buildItemRow(item, gap, meta, affordable, false, affordable);
+        });
+      });
+      html += `</div>`;
+    }
+
+    // Recommendations — future bills and goals, grouped by section
+    if (recs.length > 0) {
+      const recsBySection = { bills: [], goals: [] };
+      recs.forEach(r => recsBySection[r.section].push(r));
+      html += `
+        <div class="autofill-header autofill-header--rec">
+          <span>Recommendations</span>
+          <button type="button" class="autofill-toggle-btn" id="_af_toggle_recs">Uncheck All</button>
+        </div>
+        <div class="autofill-list autofill-list--rec">`;
+      ['bills', 'goals'].forEach(sec => {
+        if (!recsBySection[sec].length) return;
+        html += `<div class="autofill-section-label autofill-section-label--rec">${sec === 'bills' ? 'Bills' : 'Goals'}</div>`;
+        recsBySection[sec].forEach(({ item, gap, dueDate, checksRemaining }) => {
+          html += buildRecRow(item, gap, dueDate, checksRemaining);
+        });
+      });
+      html += `</div>`;
+    }
+
+    // Total = only the checked-by-default items (affordable due + all recs)
+    const affordableGap = eligible.reduce((a, e) => a + (affordMap.get(e.item.id) !== false ? e.gap : 0), 0);
+    const totalGap = affordableGap + recs.reduce((a, b) => a + b.gap, 0);
+    html += `
+      <div class="autofill-total">
+        <span>Total to allocate</span>
+        <span class="autofill-total-amount">$${totalGap.toFixed(2)}</span>
+      </div>`;
+
+    container.innerHTML = html;
+
+    // Wire checkboxes to update total and fill button state
+    modal.querySelectorAll('.autofill-cb').forEach(cb => {
+      cb.addEventListener('change', updateTotal);
+    });
+
+    // Wire the rec toggle button
+    const toggleBtn = document.getElementById('_af_toggle_recs');
+    if (toggleBtn) {
+      toggleBtn.addEventListener('click', () => {
+        const recCbs = [...modal.querySelectorAll('.autofill-list--rec .autofill-cb')];
+        const allChecked = recCbs.every(cb => cb.checked);
+        recCbs.forEach(cb => { cb.checked = !allChecked; });
+        updateTotal();
+      });
+    }
+
+    updateFillBtn();
+  }
+
+  renderAutofillItems();
+  document.getElementById('_af_paydate').addEventListener('change', renderAutofillItems);
+  document.getElementById('_af_frequency').addEventListener('change', renderAutofillItems);
+
+  function cleanup() { overlay.remove(); }
+  document.getElementById('_af_cancel').addEventListener('click', cleanup);
+  overlay.addEventListener('click', e => { if (e.target === overlay) cleanup(); });
+
+  document.getElementById('_af_fill').addEventListener('click', () => {
+    const payDateVal = document.getElementById('_af_paydate').value;
+    const freq = document.getElementById('_af_frequency').value;
+    if (!payDateVal) { alert('Please set a paycheck date'); return; }
+
+    // Save settings
+    state.paycheckSettings = { nextPayDate: payDateVal, frequency: freq };
+
+    // Only fill checked items
+    modal.querySelectorAll('.autofill-cb:checked').forEach(cb => {
+      const id = cb.dataset.id;
+      const gap = parseFloat(cb.dataset.gap) || 0;
+      if (gap <= 0) return;
+      // Find item across all sections
+      for (const sec of ['bills', 'budget', 'goals']) {
+        const item = (state.items[sec] || []).find(i => i.id === id);
+        if (item) {
+          item.amount = Number(item.amount) + gap;
+          recordAction({ type: 'autofill', name: item.name, amount: gap.toFixed(2), date: new Date().toISOString() });
+          break;
+        }
+      }
+    });
+
+    saveLocal();
+    render();
+    autosaveToGist();
     cleanup();
   });
 }

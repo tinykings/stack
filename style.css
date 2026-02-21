@@ -899,3 +899,209 @@ body {
   border-radius: var(--radius);
   border: 1px solid var(--border);
 }
+
+/* ---- Autofill Modal ---- */
+
+.autofill-settings {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.autofill-header {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-dim);
+  margin-bottom: 8px;
+}
+
+.autofill-header--rec {
+  margin-top: 16px;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.autofill-toggle-btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  font-size: 11px;
+  font-weight: 600;
+  font-family: var(--font);
+  padding: 3px 8px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  letter-spacing: 0.03em;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.autofill-toggle-btn:hover {
+  color: var(--text);
+  border-color: var(--border-light);
+}
+
+.autofill-list {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.autofill-list--rec {
+  border-color: var(--border);
+  opacity: 0.9;
+}
+
+.autofill-section-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--amber);
+  padding: 6px 12px;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+}
+
+.autofill-section-label--rec {
+  color: var(--text-secondary);
+}
+
+.autofill-item {
+  display: flex;
+  align-items: center;
+  padding: 7px 12px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  gap: 8px;
+  cursor: pointer;
+  transition: background 0.1s;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.autofill-item:last-child {
+  border-bottom: none;
+}
+
+.autofill-item:hover {
+  background: var(--surface-up);
+}
+
+/* Dim content when unchecked (but keep unaffordable amount at full red) */
+.autofill-item:has(.autofill-cb:not(:checked)) .autofill-rec-name,
+.autofill-item:has(.autofill-cb:not(:checked)) .autofill-rec-meta,
+.autofill-item:has(.autofill-cb:not(:checked)) .autofill-item-amount:not(.autofill-item-amount--unaffordable) {
+  opacity: 0.35;
+}
+
+.autofill-item .autofill-cb {
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+  accent-color: var(--amber);
+  cursor: pointer;
+}
+
+.autofill-item--rec {
+  background: var(--bg);
+}
+
+.autofill-item--rec:hover {
+  background: var(--surface);
+}
+
+.autofill-rec-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+  min-width: 0;
+}
+
+.autofill-rec-meta {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text-dim);
+  white-space: nowrap;
+  flex-shrink: 0;
+  letter-spacing: -0.01em;
+}
+
+.autofill-item-amount {
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--green-text);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.autofill-item-amount--rec {
+  color: var(--text-secondary);
+}
+
+.autofill-item-amount--unaffordable {
+  color: var(--red-text);
+}
+
+.autofill-total {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 0 0 0;
+  margin-top: 12px;
+  border-top: 1px solid var(--border);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.autofill-total-amount {
+  font-family: var(--mono);
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--amber);
+  letter-spacing: -0.02em;
+}
+
+.autofill-hint {
+  text-align: center;
+  color: var(--text-dim);
+  font-size: 13px;
+  padding: 20px 0 8px;
+  margin: 0;
+}
+
+.modal .actions button#_af_fill {
+  background: var(--amber);
+  border-color: var(--amber);
+  color: #141414;
+  flex: 1;
+}
+
+.modal .actions button#_af_fill:hover:not(:disabled) {
+  background: var(--amber-dim);
+  border-color: var(--amber-dim);
+}
+
+.modal .actions button#_af_fill:disabled {
+  background: var(--surface);
+  border-color: var(--border);
+  color: var(--text-dim);
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.modal .actions button#_af_cancel {
+  background: transparent;
+  color: var(--text-secondary);
+  border-color: var(--border);
+}
