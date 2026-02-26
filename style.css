@@ -902,19 +902,6 @@ body {
 
 /* ---- Autofill Modal ---- */
 
-.autofill-settings {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 12px;
-  margin-bottom: 16px;
-}
-
-@media (min-width: 420px) {
-  .autofill-settings {
-    grid-template-columns: 1fr 1fr;
-  }
-}
-
 .autofill-header {
   font-size: 11px;
   font-weight: 600;
@@ -924,42 +911,10 @@ body {
   margin-bottom: 8px;
 }
 
-.autofill-header--rec {
-  margin-top: 16px;
-  color: var(--text-secondary);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.autofill-toggle-btn {
-  background: transparent;
-  border: 1px solid var(--border);
-  color: var(--text-dim);
-  font-size: 11px;
-  font-weight: 600;
-  font-family: var(--font);
-  padding: 3px 8px;
-  border-radius: var(--radius);
-  cursor: pointer;
-  letter-spacing: 0.03em;
-  transition: color 0.15s, border-color 0.15s;
-}
-
-.autofill-toggle-btn:hover {
-  color: var(--text);
-  border-color: var(--border-light);
-}
-
 .autofill-list {
   border: 1px solid var(--border);
   border-radius: var(--radius);
   overflow: hidden;
-}
-
-.autofill-list--rec {
-  border-color: var(--border);
-  opacity: 0.9;
 }
 
 .autofill-section-label {
@@ -971,10 +926,6 @@ body {
   padding: 6px 12px;
   background: var(--bg);
   border-bottom: 1px solid var(--border);
-}
-
-.autofill-section-label--rec {
-  color: var(--text-secondary);
 }
 
 .autofill-item {
@@ -1013,14 +964,6 @@ body {
   cursor: pointer;
 }
 
-.autofill-item--rec {
-  background: var(--bg);
-}
-
-.autofill-item--rec:hover {
-  background: var(--surface);
-}
-
 .autofill-rec-name {
   font-size: 13px;
   font-weight: 500;
@@ -1048,10 +991,6 @@ body {
   color: var(--green-text);
   white-space: nowrap;
   flex-shrink: 0;
-}
-
-.autofill-item-amount--rec {
-  color: var(--text-secondary);
 }
 
 .autofill-item-amount--unaffordable {
