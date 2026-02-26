@@ -1151,6 +1151,8 @@ function showAutofillModal() {
     });
     const el = modal.querySelector('.autofill-total-amount');
     if (el) el.textContent = '$' + total.toFixed(2);
+    const rem = document.getElementById('_af_remaining');
+    if (rem) rem.textContent = '$' + (lastAvailableAmount - total).toFixed(2);
     updateFillBtn();
   }
 
@@ -1196,10 +1198,15 @@ function showAutofillModal() {
     html += `</div>`;
 
     const affordableGap = eligible.reduce((a, e) => a + (affordMap.get(e.item.id) !== false ? e.gap : 0), 0);
+    const remainingAfter = lastAvailableAmount - affordableGap;
     html += `
       <div class="autofill-total">
         <span>Total to allocate</span>
         <span class="autofill-total-amount">$${affordableGap.toFixed(2)}</span>
+      </div>
+      <div class="autofill-remaining">
+        <span>Available after</span>
+        <span id="_af_remaining">$${remainingAfter.toFixed(2)}</span>
       </div>`;
 
     container.innerHTML = html;

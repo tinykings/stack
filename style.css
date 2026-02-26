@@ -1017,6 +1017,23 @@ body {
   letter-spacing: -0.02em;
 }
 
+.autofill-remaining {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 0 0 0;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-dim);
+}
+
+.autofill-remaining span:last-child {
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
 .autofill-hint {
   text-align: center;
   color: var(--text-dim);
