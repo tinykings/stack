@@ -2,6 +2,7 @@
 const STORAGE_KEY = 'budget_data_v1';
 const GIST_ID_KEY = 'budget_gist_id';
 const GIST_TOKEN_KEY = 'budget_gist_token';
+const AUTOFILL_FREQ_KEY = 'autofill_frequency';
 
 let state = {
   balances: { checking: 0, savings: 0, credit: 0 },
@@ -1062,6 +1063,15 @@ function getNextBillDueDate(dayOfMonth) {
   return new Date(today.getFullYear(), today.getMonth() + 1, dayOfMonth);
 }
 
+function checksUntilDate(dueDate, freq) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const ms = dueDate - today;
+  if (ms <= 0) return 1;
+  const freqDays = { weekly: 7, biweekly: 14, monthly: 30.44 }[freq] || 14;
+  return Math.max(1, Math.ceil(ms / (freqDays * 24 * 60 * 60 * 1000)));
+}
+
 function getItemRemaining(item) {
   const spent = (item.spent || []).reduce((a, b) => a + Number(b.amount || 0), 0);
   return Number(item.amount || 0) - spent;
@@ -1110,6 +1120,8 @@ function getAutoFillItems() {
 
 
 function showAutofillModal() {
+  const storedFreq = localStorage.getItem(AUTOFILL_FREQ_KEY) || 'biweekly';
+
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay';
   const modal = document.createElement('div');
@@ -1117,6 +1129,14 @@ function showAutofillModal() {
 
   modal.innerHTML = `
     <h3>Auto Fill</h3>
+    <div class="autofill-freq-row">
+      <span class="autofill-freq-label">Pay Frequency</span>
+      <select id="_af_frequency">
+        <option value="weekly" ${storedFreq === 'weekly' ? 'selected' : ''}>Every Week</option>
+        <option value="biweekly" ${storedFreq === 'biweekly' ? 'selected' : ''}>Every Two Weeks</option>
+        <option value="monthly" ${storedFreq === 'monthly' ? 'selected' : ''}>Every Month</option>
+      </select>
+    </div>
     <div id="_af_items_container"></div>
     <div class="actions">
       <button id="_af_cancel">Cancel</button>
@@ -1156,13 +1176,30 @@ function showAutofillModal() {
     updateFillBtn();
   }
 
-  const container = document.getElementById('_af_items_container');
-  const eligible = getAutoFillItems();
+  function renderItems() {
+    const freq = document.getElementById('_af_frequency').value;
+    localStorage.setItem(AUTOFILL_FREQ_KEY, freq);
+    const container = document.getElementById('_af_items_container');
+    const eligible = getAutoFillItems();
 
-  if (eligible.length === 0) {
-    container.innerHTML = '<p class="autofill-hint">All items are fully funded.</p>';
-    updateFillBtn();
-  } else {
+    if (eligible.length === 0) {
+      container.innerHTML = '<p class="autofill-hint">All items are fully funded.</p>';
+      updateFillBtn();
+      return;
+    }
+
+    // Compute per-check amount: bills/goals divide gap by checks until due; budget fills fully
+    const withPerCheck = eligible.map(e => {
+      let perCheckGap;
+      if (e.dueDate) {
+        const checks = checksUntilDate(e.dueDate, freq);
+        perCheckGap = e.gap / checks;
+      } else {
+        perCheckGap = e.gap;
+      }
+      return { ...e, perCheckGap };
+    });
+
     // Allocate available funds in priority order:
     // 1. Budget every-check  2. Dated items by due date  3. Budget every-month
     const dueSortKey = e => {
@@ -1172,37 +1209,43 @@ function showAutofillModal() {
     };
     let available = lastAvailableAmount;
     const affordMap = new Map();
-    [...eligible].sort((a, b) => dueSortKey(a) - dueSortKey(b)).forEach(e => {
-      const canAfford = available >= e.gap - 0.005;
-      if (canAfford) available -= e.gap;
+    [...withPerCheck].sort((a, b) => dueSortKey(a) - dueSortKey(b)).forEach(e => {
+      const canAfford = available >= e.perCheckGap - 0.005;
+      if (canAfford) available -= e.perCheckGap;
       affordMap.set(e.item.id, canAfford);
     });
 
     const bySection = { bills: [], budget: [], goals: [] };
-    eligible.forEach(e => bySection[e.section].push(e));
+    withPerCheck.forEach(e => bySection[e.section].push(e));
     const sectionNames = { bills: 'Bills', budget: 'Budget', goals: 'Goals' };
 
     let html = `<div class="autofill-header">Items to Fund</div><div class="autofill-list">`;
     ['bills', 'budget', 'goals'].forEach(sec => {
       if (!bySection[sec].length) return;
       html += `<div class="autofill-section-label">${sectionNames[sec]}</div>`;
-      bySection[sec].forEach(({ item, gap, dueDate, recurrence }) => {
+      bySection[sec].forEach(({ item, perCheckGap, dueDate, recurrence }) => {
         let meta = '';
-        if (dueDate) meta = dueDate.toLocaleDateString([], { month: 'short', day: 'numeric' });
-        else if (recurrence === 'every-check') meta = 'every check';
-        else if (recurrence === 'every-month') meta = 'every month';
+        if (dueDate) {
+          const checks = checksUntilDate(dueDate, freq);
+          const dueFmt = dueDate.toLocaleDateString([], { month: 'short', day: 'numeric' });
+          meta = `${dueFmt} · ${checks} check${checks !== 1 ? 's' : ''}`;
+        } else if (recurrence === 'every-check') {
+          meta = 'every check';
+        } else if (recurrence === 'every-month') {
+          meta = 'every month';
+        }
         const affordable = affordMap.get(item.id) !== false;
-        html += buildItemRow(item, gap, meta, affordable, affordable);
+        html += buildItemRow(item, perCheckGap, meta, affordable, affordable);
       });
     });
     html += `</div>`;
 
-    const affordableGap = eligible.reduce((a, e) => a + (affordMap.get(e.item.id) !== false ? e.gap : 0), 0);
-    const remainingAfter = lastAvailableAmount - affordableGap;
+    const affordableTotal = withPerCheck.reduce((a, e) => a + (affordMap.get(e.item.id) !== false ? e.perCheckGap : 0), 0);
+    const remainingAfter = lastAvailableAmount - affordableTotal;
     html += `
       <div class="autofill-total">
         <span>Total to allocate</span>
-        <span class="autofill-total-amount">$${affordableGap.toFixed(2)}</span>
+        <span class="autofill-total-amount">$${affordableTotal.toFixed(2)}</span>
       </div>
       <div class="autofill-remaining">
         <span>Available after</span>
@@ -1214,9 +1257,12 @@ function showAutofillModal() {
     modal.querySelectorAll('.autofill-cb').forEach(cb => {
       cb.addEventListener('change', updateTotal);
     });
+
+    updateFillBtn();
   }
 
-  updateFillBtn();
+  renderItems();
+  document.getElementById('_af_frequency').addEventListener('change', renderItems);
 
   function cleanup() { overlay.remove(); }
   document.getElementById('_af_cancel').addEventListener('click', cleanup);
