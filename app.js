@@ -3,6 +3,7 @@ const STORAGE_KEY = 'budget_data_v1';
 const GIST_ID_KEY = 'budget_gist_id';
 const GIST_TOKEN_KEY = 'budget_gist_token';
 const AUTOFILL_FREQ_KEY = 'autofill_frequency';
+const AUTOFILL_LAST_CHECK_KEY = 'autofill_last_check';
 
 let state = {
   balances: { checking: 0, savings: 0, credit: 0 },
@@ -1063,13 +1064,41 @@ function getNextBillDueDate(dayOfMonth) {
   return new Date(today.getFullYear(), today.getMonth() + 1, dayOfMonth);
 }
 
-function checksUntilDate(dueDate, freq) {
+function checksUntilDate(dueDate, freq, lastCheckStr) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  const ms = dueDate - today;
-  if (ms <= 0) return 1;
+  
+  const targetDate = new Date(dueDate);
+  targetDate.setHours(0, 0, 0, 0);
+
+  if (targetDate <= today) return 1;
+
+  if (!lastCheckStr) {
+    const freqDays = { weekly: 7, biweekly: 14, monthly: 30.44 }[freq] || 14;
+    return Math.max(1, Math.ceil((targetDate - today) / (freqDays * 24 * 60 * 60 * 1000)));
+  }
+
+  const lastCheck = new Date(lastCheckStr);
+  lastCheck.setHours(0, 0, 0, 0);
+
   const freqDays = { weekly: 7, biweekly: 14, monthly: 30.44 }[freq] || 14;
-  return Math.max(1, Math.ceil(ms / (freqDays * 24 * 60 * 60 * 1000)));
+  const freqMs = freqDays * 24 * 60 * 60 * 1000;
+
+  // Find next check date after today
+  let nextCheck = new Date(lastCheck.getTime());
+  while (nextCheck <= today) {
+    nextCheck = new Date(nextCheck.getTime() + freqMs);
+  }
+
+  // Count checks from today until targetDate
+  let checkCount = 0;
+  let currentCheck = new Date(nextCheck.getTime());
+  while (currentCheck <= targetDate) {
+    checkCount++;
+    currentCheck = new Date(currentCheck.getTime() + freqMs);
+  }
+
+  return Math.max(1, checkCount);
 }
 
 function getItemRemaining(item) {
@@ -1121,6 +1150,7 @@ function getAutoFillItems() {
 
 function showAutofillModal() {
   const storedFreq = localStorage.getItem(AUTOFILL_FREQ_KEY) || 'biweekly';
+  const storedLastCheck = localStorage.getItem(AUTOFILL_LAST_CHECK_KEY) || '';
 
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay';
@@ -1136,6 +1166,10 @@ function showAutofillModal() {
         <option value="biweekly" ${storedFreq === 'biweekly' ? 'selected' : ''}>Every Two Weeks</option>
         <option value="monthly" ${storedFreq === 'monthly' ? 'selected' : ''}>Every Month</option>
       </select>
+    </div>
+    <div class="autofill-freq-row">
+      <span class="autofill-freq-label">Last Check Date</span>
+      <input type="date" id="_af_last_check" value="${storedLastCheck}">
     </div>
     <div id="_af_items_container"></div>
     <div class="actions">
@@ -1178,7 +1212,9 @@ function showAutofillModal() {
 
   function renderItems() {
     const freq = document.getElementById('_af_frequency').value;
+    const lastCheck = document.getElementById('_af_last_check').value;
     localStorage.setItem(AUTOFILL_FREQ_KEY, freq);
+    localStorage.setItem(AUTOFILL_LAST_CHECK_KEY, lastCheck);
     const container = document.getElementById('_af_items_container');
     const eligible = getAutoFillItems();
 
@@ -1192,7 +1228,7 @@ function showAutofillModal() {
     const withPerCheck = eligible.map(e => {
       let perCheckGap;
       if (e.dueDate) {
-        const checks = checksUntilDate(e.dueDate, freq);
+        const checks = checksUntilDate(e.dueDate, freq, lastCheck);
         perCheckGap = e.gap / checks;
       } else {
         perCheckGap = e.gap;
@@ -1226,7 +1262,7 @@ function showAutofillModal() {
       bySection[sec].forEach(({ item, perCheckGap, dueDate, recurrence }) => {
         let meta = '';
         if (dueDate) {
-          const checks = checksUntilDate(dueDate, freq);
+          const checks = checksUntilDate(dueDate, freq, lastCheck);
           const dueFmt = dueDate.toLocaleDateString([], { month: 'short', day: 'numeric' });
           meta = `${dueFmt} · ${checks} check${checks !== 1 ? 's' : ''}`;
         } else if (recurrence === 'every-check') {
@@ -1263,6 +1299,7 @@ function showAutofillModal() {
 
   renderItems();
   document.getElementById('_af_frequency').addEventListener('change', renderItems);
+  document.getElementById('_af_last_check').addEventListener('change', renderItems);
 
   function cleanup() { overlay.remove(); }
   document.getElementById('_af_cancel').addEventListener('click', cleanup);
