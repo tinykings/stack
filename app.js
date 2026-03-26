@@ -1078,15 +1078,21 @@ function checksUntilDate(dueDate, freq, lastCheckStr) {
     return Math.max(1, Math.ceil((targetDate - today) / (freqDays * 24 * 60 * 60 * 1000)));
   }
 
-  const lastCheck = new Date(lastCheckStr);
+  let lastCheck;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(lastCheckStr)) {
+    const [y, m, d] = lastCheckStr.split('-').map(Number);
+    lastCheck = new Date(y, m - 1, d);
+  } else {
+    lastCheck = new Date(lastCheckStr);
+  }
   lastCheck.setHours(0, 0, 0, 0);
 
   const freqDays = { weekly: 7, biweekly: 14, monthly: 30.44 }[freq] || 14;
   const freqMs = freqDays * 24 * 60 * 60 * 1000;
 
-  // Find next check date after today
+  // Find next check date (including today if it is a payday)
   let nextCheck = new Date(lastCheck.getTime());
-  while (nextCheck <= today) {
+  while (nextCheck < today) {
     nextCheck = new Date(nextCheck.getTime() + freqMs);
   }
 
