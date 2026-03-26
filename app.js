@@ -1311,7 +1311,12 @@ function showAutofillModal() {
   document.getElementById('_af_cancel').addEventListener('click', cleanup);
   overlay.addEventListener('click', e => { if (e.target === overlay) cleanup(); });
 
-  document.getElementById('_af_fill').addEventListener('click', () => {
+  document.getElementById('_af_fill').addEventListener('click', async (e) => {
+    const btn = e.target;
+    const originalText = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = 'Filling...';
+
     modal.querySelectorAll('.autofill-cb:checked').forEach(cb => {
       const id = cb.dataset.id;
       const gap = parseFloat(cb.dataset.gap) || 0;
@@ -1319,7 +1324,7 @@ function showAutofillModal() {
       for (const sec of ['bills', 'budget', 'goals']) {
         const item = (state.items[sec] || []).find(i => i.id === id);
         if (item) {
-          item.amount = Number(item.amount) + gap;
+          item.amount = (Number(item.amount) || 0) + gap;
           recordAction({ type: 'autofill', name: item.name, amount: gap.toFixed(2), date: new Date().toISOString() });
           break;
         }
@@ -1328,7 +1333,11 @@ function showAutofillModal() {
 
     saveLocal();
     render();
-    autosaveToGist();
+    
+    if (typeof setStatus === 'function') setStatus('Allocating funds...');
+    await autosaveToGist();
+    if (typeof setStatus === 'function') setStatus('Funds allocated and saved');
+    
     cleanup();
   });
 }
