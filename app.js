@@ -9,7 +9,8 @@ let state = {
   balances: { checking: 0, savings: 0, credit: 0 },
   accounts: [], // [{id, name, amount, isPositive}]
   items: { accounts: [], budget: [], bills: [], goals: [] },
-  actionHistory: [] // Last 10 actions: [{type, name, section, amount?, date}]
+  actionHistory: [], // Last 10 actions: [{type, name, section, amount?, date}]
+  disabledSections: [] // List of hidden/disabled sections
 };
 let lastAvailableAmount = 0; // New global variable
 let isSavingToGist = false; // Flag to prevent auto-refresh during save
@@ -101,6 +102,16 @@ function saveLocal(){
 function renderLists(){
   ['accounts','budget','bills','goals'].forEach(section=>{
     const container = document.querySelector(`.list-items[data-section="${section}"]`);
+    const sectionEl = container.closest('.section');
+    
+    // Hide/show the entire section element
+    if (state.disabledSections && state.disabledSections.includes(section)) {
+      if (sectionEl) sectionEl.style.display = 'none';
+      return;
+    } else {
+      if (sectionEl) sectionEl.style.display = 'block';
+    }
+
     container.innerHTML = '';
 
     // handle accounts differently (simpler structure)
@@ -257,18 +268,21 @@ function renderLists(){
 }
 
 function computeTotals(){
-  const sum = s => state.items[s].reduce((a,b)=>{
-    const totalSpent = (b.spent||[]).reduce((x,y)=>x+Number(y.amount||0),0);
-    const remaining = Number(b.amount||0) - totalSpent;
-    // Only add positive remaining amounts to the total. Negative amounts are for tracking only.
-    return a + (remaining > 0 ? remaining : 0);
-  }, 0);
+  const sum = s => {
+    if (state.disabledSections && state.disabledSections.includes(s)) return 0;
+    return state.items[s].reduce((a,b)=>{
+      const totalSpent = (b.spent||[]).reduce((x,y)=>x+Number(y.amount||0),0);
+      const remaining = Number(b.amount||0) - totalSpent;
+      // Only add positive remaining amounts to the total. Negative amounts are for tracking only.
+      return a + (remaining > 0 ? remaining : 0);
+    }, 0);
+  };
   const totalBudget = sum('budget');
   const totalBills = sum('bills');
   const totalGoals = sum('goals');
   
   // calculate accounts total
-  const totalAccounts = (state.accounts || []).reduce((a, acc) => {
+  const totalAccounts = (state.disabledSections && state.disabledSections.includes('accounts')) ? 0 : (state.accounts || []).reduce((a, acc) => {
     const val = Number(acc.amount || 0);
     if(acc.isPositive) return a + val; // add positive accounts
     else return a - val; // subtract negative accounts (liabilities)
@@ -373,7 +387,17 @@ function showHistoryModal(){
   overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
 }
 
-function render(){ renderLists(); computeTotals(); renderFooterAction(); }
+function render(){ 
+  renderLists(); 
+  computeTotals(); 
+  renderFooterAction(); 
+  
+  // Update section toggles in settings to match state
+  document.querySelectorAll('.section-toggle').forEach(toggle => {
+    const section = toggle.dataset.section;
+    toggle.checked = !state.disabledSections?.includes(section);
+  });
+}
 
 function escapeHtml(text){ return (text+'').replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;","\"":"&quot;"})[c]); }
 
@@ -507,6 +531,30 @@ function setupUI(){
       gistModal.style.display = 'none';
     });
   }
+
+  // Section visibility toggles
+  const sectionToggles = document.querySelectorAll('.section-toggle');
+  sectionToggles.forEach(toggle => {
+    const section = toggle.dataset.section;
+    // Set initial state from budget state
+    toggle.checked = !state.disabledSections?.includes(section);
+
+    toggle.addEventListener('change', () => {
+      if (!state.disabledSections) state.disabledSections = [];
+      
+      if (toggle.checked) {
+        state.disabledSections = state.disabledSections.filter(s => s !== section);
+      } else {
+        if (!state.disabledSections.includes(section)) {
+          state.disabledSections.push(section);
+        }
+      }
+      
+      saveLocal();
+      render();
+      autosaveToGist();
+    });
+  });
 
   if (gistModal) {
     gistModal.addEventListener('click', e => {
@@ -1114,41 +1162,48 @@ function getItemRemaining(item) {
 
 function getAutoFillItems() {
   const eligible = [];
+  const isDisabled = s => state.disabledSections && state.disabledSections.includes(s);
 
   // Bills: all with remaining gap, sorted by upcoming due date
-  (state.items.bills || []).forEach(item => {
-    if (!item.due || item.due.type !== 'day') return;
-    const dueDay = Number(item.due.value);
-    const nextDue = getNextBillDueDate(dueDay);
-    const remaining = getItemRemaining(item);
-    const needed = Number(item.neededAmount || item.amount || 0);
-    const gap = needed - remaining;
-    if (gap > 0.005) eligible.push({ item, section: 'bills', gap, dueDate: nextDue });
-  });
+  if (!isDisabled('bills')) {
+    (state.items.bills || []).forEach(item => {
+      if (!item.due || item.due.type !== 'day') return;
+      const dueDay = Number(item.due.value);
+      const nextDue = getNextBillDueDate(dueDay);
+      const remaining = getItemRemaining(item);
+      const needed = Number(item.neededAmount || item.amount || 0);
+      const gap = needed - remaining;
+      if (gap > 0.005) eligible.push({ item, section: 'bills', gap, dueDate: nextDue });
+    });
+  }
 
   // Goals: all with remaining gap
-  (state.items.goals || []).forEach(item => {
-    if (!item.due || item.due.type !== 'date' || !item.due.value) return;
-    const [y, m, d] = item.due.value.split('-').map(Number);
-    const dueDate = new Date(y, m - 1, d);
-    const remaining = getItemRemaining(item);
-    const needed = Number(item.neededAmount || item.amount || 0);
-    const gap = needed - remaining;
-    if (gap > 0.005) eligible.push({ item, section: 'goals', gap, dueDate });
-  });
+  if (!isDisabled('goals')) {
+    (state.items.goals || []).forEach(item => {
+      if (!item.due || item.due.type !== 'date' || !item.due.value) return;
+      const [y, m, d] = item.due.value.split('-').map(Number);
+      const dueDate = new Date(y, m - 1, d);
+      const remaining = getItemRemaining(item);
+      const needed = Number(item.neededAmount || item.amount || 0);
+      const gap = needed - remaining;
+      if (gap > 0.005) eligible.push({ item, section: 'goals', gap, dueDate });
+    });
+  }
 
   // Budget: every-check always; every-month if not fully funded
-  (state.items.budget || []).forEach(item => {
-    if (!item.due || item.due.type !== 'recurrence') return;
-    const remaining = getItemRemaining(item);
-    const needed = Number(item.neededAmount || item.amount || 0);
-    const gap = needed - remaining;
-    if (gap <= 0.005) return;
-    const recurrence = item.due.value;
-    if (recurrence === 'every-check' || recurrence === 'every-month') {
-      eligible.push({ item, section: 'budget', gap, recurrence });
-    }
-  });
+  if (!isDisabled('budget')) {
+    (state.items.budget || []).forEach(item => {
+      if (!item.due || item.due.type !== 'recurrence') return;
+      const remaining = getItemRemaining(item);
+      const needed = Number(item.neededAmount || item.amount || 0);
+      const gap = needed - remaining;
+      if (gap <= 0.005) return;
+      const recurrence = item.due.value;
+      if (recurrence === 'every-check' || recurrence === 'every-month') {
+        eligible.push({ item, section: 'budget', gap, recurrence });
+      }
+    });
+  }
 
   return eligible;
 }
