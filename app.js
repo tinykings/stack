@@ -102,7 +102,7 @@ function saveLocal(){
 function renderLists(){
   ['accounts','budget','bills','goals'].forEach(section=>{
     const container = document.querySelector(`.list-items[data-section="${section}"]`);
-    const sectionEl = container.closest('.section');
+    const sectionEl = container.closest('.list');
     
     // Hide/show the entire section element
     if (state.disabledSections && state.disabledSections.includes(section)) {
