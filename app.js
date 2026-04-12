@@ -3,7 +3,7 @@ const STORAGE_KEY = 'budget_data_v1';
 const GIST_ID_KEY = 'budget_gist_id';
 const GIST_TOKEN_KEY = 'budget_gist_token';
 const AUTOFILL_FREQ_KEY = 'autofill_frequency';
-const AUTOFILL_LAST_CHECK_KEY = 'autofill_last_check';
+const AUTOFILL_START_DATE_KEY = 'autofill_start_date';
 
 let state = {
   balances: { checking: 0, savings: 0, credit: 0 },
@@ -52,6 +52,15 @@ function loadLocal(){
   if(raw){
     try{ state = JSON.parse(raw); } 
     catch(e){ console.warn('Invalid local data', e); }
+  }
+  // Sync paySchedule from state to localStorage
+  if (state.paySchedule) {
+    if (state.paySchedule.frequency) {
+      localStorage.setItem(AUTOFILL_FREQ_KEY, state.paySchedule.frequency);
+    }
+    if (state.paySchedule.startDate) {
+      localStorage.setItem(AUTOFILL_START_DATE_KEY, state.paySchedule.startDate);
+    }
   }
   if (!Array.isArray(state.actionHistory)) {
     state.actionHistory = [];
@@ -725,6 +734,15 @@ async function loadFromGist(silent = false){
   const parsed = JSON.parse(content);
   // remove legacy transactions from loaded data
   state = parsed;
+  // Sync paySchedule from state to localStorage
+  if (state.paySchedule) {
+    if (state.paySchedule.frequency) {
+      localStorage.setItem(AUTOFILL_FREQ_KEY, state.paySchedule.frequency);
+    }
+    if (state.paySchedule.startDate) {
+      localStorage.setItem(AUTOFILL_START_DATE_KEY, state.paySchedule.startDate);
+    }
+  }
   saveLocal(); render();
         localStorage.setItem(GIST_ID_KEY, gistId); if(token) localStorage.setItem(GIST_TOKEN_KEY, token);
         setStatus('Loaded data from gist');
@@ -1112,7 +1130,7 @@ function getNextBillDueDate(dayOfMonth) {
   return new Date(today.getFullYear(), today.getMonth() + 1, dayOfMonth);
 }
 
-function checksUntilDate(dueDate, freq, lastCheckStr) {
+function checksUntilDate(dueDate, freq, startDateStr) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   
@@ -1121,25 +1139,25 @@ function checksUntilDate(dueDate, freq, lastCheckStr) {
 
   if (targetDate <= today) return 1;
 
-  if (!lastCheckStr) {
+  if (!startDateStr) {
     const freqDays = { weekly: 7, biweekly: 14, monthly: 30.44 }[freq] || 14;
     return Math.max(1, Math.ceil((targetDate - today) / (freqDays * 24 * 60 * 60 * 1000)));
   }
 
-  let lastCheck;
-  if (/^\d{4}-\d{2}-\d{2}$/.test(lastCheckStr)) {
-    const [y, m, d] = lastCheckStr.split('-').map(Number);
-    lastCheck = new Date(y, m - 1, d);
+  let startDate;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(startDateStr)) {
+    const [y, m, d] = startDateStr.split('-').map(Number);
+    startDate = new Date(y, m - 1, d);
   } else {
-    lastCheck = new Date(lastCheckStr);
+    startDate = new Date(startDateStr);
   }
-  lastCheck.setHours(0, 0, 0, 0);
+  startDate.setHours(0, 0, 0, 0);
 
   const freqDays = { weekly: 7, biweekly: 14, monthly: 30.44 }[freq] || 14;
   const freqMs = freqDays * 24 * 60 * 60 * 1000;
 
   // Find next check date (including today if it is a payday)
-  let nextCheck = new Date(lastCheck.getTime());
+  let nextCheck = new Date(startDate.getTime());
   while (nextCheck < today) {
     nextCheck = new Date(nextCheck.getTime() + freqMs);
   }
@@ -1210,16 +1228,17 @@ function getAutoFillItems() {
 
 
 function showAutofillModal() {
-  const storedFreq = localStorage.getItem(AUTOFILL_FREQ_KEY) || 'biweekly';
-  const storedLastCheck = localStorage.getItem(AUTOFILL_LAST_CHECK_KEY) || '';
-
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay';
   const modal = document.createElement('div');
   modal.className = 'modal';
 
+  const storedFreq = localStorage.getItem(AUTOFILL_FREQ_KEY) || 'biweekly';
+  const storedStartDate = localStorage.getItem(AUTOFILL_START_DATE_KEY) || '';
+
   modal.innerHTML = `
     <h3>Auto Fill</h3>
+    <div id="_af_items_container"></div>
     <div class="autofill-freq-row">
       <span class="autofill-freq-label">Pay Frequency</span>
       <select id="_af_frequency">
@@ -1229,10 +1248,9 @@ function showAutofillModal() {
       </select>
     </div>
     <div class="autofill-freq-row">
-      <span class="autofill-freq-label">Last Check Date</span>
-      <input type="date" id="_af_last_check" value="${storedLastCheck}">
+      <span class="autofill-freq-label">Start Date</span>
+      <input type="date" id="_af_start_date" value="${storedStartDate}">
     </div>
-    <div id="_af_items_container"></div>
     <div class="actions">
       <button id="_af_cancel">Cancel</button>
       <button id="_af_fill">Fill Items</button>
@@ -1273,9 +1291,13 @@ function showAutofillModal() {
 
   function renderItems() {
     const freq = document.getElementById('_af_frequency').value;
-    const lastCheck = document.getElementById('_af_last_check').value;
+    const startDate = document.getElementById('_af_start_date').value;
     localStorage.setItem(AUTOFILL_FREQ_KEY, freq);
-    localStorage.setItem(AUTOFILL_LAST_CHECK_KEY, lastCheck);
+    localStorage.setItem(AUTOFILL_START_DATE_KEY, startDate);
+    state.paySchedule = state.paySchedule || {};
+    state.paySchedule.frequency = freq;
+    state.paySchedule.startDate = startDate;
+    saveLocal();
     const container = document.getElementById('_af_items_container');
     const eligible = getAutoFillItems();
 
@@ -1289,7 +1311,7 @@ function showAutofillModal() {
     const withPerCheck = eligible.map(e => {
       let perCheckGap;
       if (e.dueDate) {
-        const checks = checksUntilDate(e.dueDate, freq, lastCheck);
+        const checks = checksUntilDate(e.dueDate, freq, startDate);
         perCheckGap = e.gap / checks;
       } else {
         perCheckGap = e.gap;
@@ -1323,7 +1345,7 @@ function showAutofillModal() {
       bySection[sec].forEach(({ item, perCheckGap, dueDate, recurrence }) => {
         let meta = '';
         if (dueDate) {
-          const checks = checksUntilDate(dueDate, freq, lastCheck);
+          const checks = checksUntilDate(dueDate, freq, startDate);
           const dueFmt = dueDate.toLocaleDateString([], { month: 'short', day: 'numeric' });
           meta = `${dueFmt} · ${checks} check${checks !== 1 ? 's' : ''}`;
         } else if (recurrence === 'every-check') {
@@ -1360,7 +1382,7 @@ function showAutofillModal() {
 
   renderItems();
   document.getElementById('_af_frequency').addEventListener('change', renderItems);
-  document.getElementById('_af_last_check').addEventListener('change', renderItems);
+  document.getElementById('_af_start_date').addEventListener('change', renderItems);
 
   function cleanup() { overlay.remove(); }
   document.getElementById('_af_cancel').addEventListener('click', cleanup);
