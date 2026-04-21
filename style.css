@@ -300,6 +300,21 @@ body {
   color: var(--text-dim);
 }
 
+.icon-action-btn.zero {
+  color: var(--green-text);
+}
+
+.icon-action-btn.zero:hover {
+  border-color: var(--green-text);
+  color: var(--green-text);
+}
+
+.icon-action-btn.zero:active {
+  background: rgba(90, 154, 106, 0.12);
+  border-color: var(--green);
+  color: var(--green-text);
+}
+
 /* ---- Progress Bar ---- */
 
 .item-progress {

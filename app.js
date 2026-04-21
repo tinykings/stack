@@ -253,9 +253,11 @@ function renderLists(){
 
       // Only show Spend button if enableSpending is not explicitly false
       const showSpendButton = item.enableSpending !== false;
-      const actionsHTML = showSpendButton ? `
+      const showZeroButton = section === 'bills';
+      const actionsHTML = (showSpendButton || showZeroButton) ? `
         <div class="item-actions-inline">
-          <button class="icon-action-btn spend" data-action="spend" data-id="${item.id}" data-section="${section}" aria-label="Spend">➖</button>
+          ${showSpendButton ? `<button class="icon-action-btn spend" data-action="spend" data-id="${item.id}" data-section="${section}" aria-label="Spend">➖</button>` : ''}
+          ${showZeroButton ? `<button class="icon-action-btn zero" data-action="zero" data-id="${item.id}" data-section="${section}" aria-label="Zero current amount">↺</button>` : ''}
         </div>
       ` : '';
 
@@ -351,6 +353,9 @@ function formatActionText(action){
   const prefix = ts ? `${ts}: ` : '';
   if (action.type === 'spend') {
     return `${prefix}spend ${action.name} -$${action.amount}`;
+  }
+  if (action.type === 'zero') {
+    return `${prefix}zero ${action.name}`;
   }
   if (action.type === 'autofill') {
     return `${prefix}autofill ${action.name} +$${action.amount}`;
@@ -476,6 +481,20 @@ function addSpending(section, itemId, spendName, spendAmount){
   saveLocal();
 }
 
+function zeroItemCurrentAmount(section, itemId){
+  const item = state.items[section].find(i=>i.id===itemId);
+  if(!item) return;
+  const now = new Date().toISOString();
+  const totalSpent = (item.spent || []).reduce((sum, spend) => sum + Number(spend.amount || 0), 0);
+  item.amount = totalSpent;
+  state._lastUpdated = now;
+  state._lastSpend = { section, itemId, name: item.name, amount: 0, date: now, itemName: item.name };
+  recordAction({ type: 'zero', name: item.name, section, amount: 0, date: now });
+  saveLocal();
+  render();
+  autosaveToGist();
+}
+
 // UI wiring
 function setupUI(){
   loadLocal(); render();
@@ -504,6 +523,8 @@ function setupUI(){
         
         if(action === 'spend'){
           showSpendingForm(section, id);
+        } else if(action === 'zero'){
+          zeroItemCurrentAmount(section, id);
         } else if(action === 'edit'){
           showItemForm(section, id);
         }
