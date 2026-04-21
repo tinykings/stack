@@ -253,11 +253,9 @@ function renderLists(){
 
       // Only show Spend button if enableSpending is not explicitly false
       const showSpendButton = item.enableSpending !== false;
-      const showZeroButton = section === 'bills';
-      const actionsHTML = (showSpendButton || showZeroButton) ? `
+      const actionsHTML = showSpendButton ? `
         <div class="item-actions-inline">
-          ${showSpendButton ? `<button class="icon-action-btn spend" data-action="spend" data-id="${item.id}" data-section="${section}" aria-label="Spend">➖</button>` : ''}
-          ${showZeroButton ? `<button class="icon-action-btn zero" data-action="zero" data-id="${item.id}" data-section="${section}" aria-label="Zero current amount">↺</button>` : ''}
+          <button class="icon-action-btn spend" data-action="spend" data-id="${item.id}" data-section="${section}" aria-label="Spend">➖</button>
         </div>
       ` : '';
 
@@ -1031,6 +1029,7 @@ function showItemForm(section, itemId = null) {
     <div class="actions">
       ${isEdit ? '<button id="_item_delete" class="delBtn">Delete</button>' : ''}
       <button id="_item_cancel">Cancel</button>
+      ${isEdit && section === 'bills' ? '<button id="_item_paid" class="paidBtn">Paid</button>' : ''}
       <button id="_item_ok">${isEdit ? 'Save' : 'Add'}</button>
     </div>
   `;
@@ -1059,6 +1058,13 @@ function showItemForm(section, itemId = null) {
   });
 
   if (isEdit) {
+    if (section === 'bills') {
+      document.getElementById('_item_paid').addEventListener('click', async () => {
+        zeroItemCurrentAmount(section, itemId);
+        cleanup();
+      });
+    }
+
     document.getElementById('_item_delete').addEventListener('click', async () => {
       if (confirm('Remove item?')) {
         await removeItem(section, itemId);

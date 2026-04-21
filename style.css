@@ -503,6 +503,17 @@ body {
   flex: 1;
 }
 
+.modal .actions button#_item_paid {
+  background: var(--green);
+  border-color: var(--green);
+  color: #141414;
+}
+
+.modal .actions button#_item_paid:hover {
+  background: var(--green-text);
+  border-color: var(--green-text);
+}
+
 .modal .actions button#_item_ok:hover,
 .modal .actions button#_spend_ok:hover {
   background: var(--amber-dim);
