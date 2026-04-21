@@ -25,6 +25,8 @@
   --red: #b05050;
   --red-text: #d47272;
   --yellow: #b89940;
+  --blue: #4f86d9;
+  --blue-text: #8db5f2;
 
   --font: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
   --mono: 'JetBrains Mono', 'SF Mono', 'Fira Code', monospace;
@@ -512,6 +514,17 @@ body {
 .modal .actions button#_item_paid:hover {
   background: var(--green-text);
   border-color: var(--green-text);
+}
+
+.modal .actions button#_item_spend {
+  background: var(--blue);
+  border-color: var(--blue);
+  color: #141414;
+}
+
+.modal .actions button#_item_spend:hover {
+  background: var(--blue-text);
+  border-color: var(--blue-text);
 }
 
 .modal .actions button#_item_ok:hover,

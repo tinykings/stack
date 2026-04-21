@@ -251,14 +251,6 @@ function renderLists(){
         </div>
       ` : '';
 
-      // Only show Spend button if enableSpending is not explicitly false
-      const showSpendButton = item.enableSpending !== false;
-      const actionsHTML = showSpendButton ? `
-        <div class="item-actions-inline">
-          <button class="icon-action-btn spend" data-action="spend" data-id="${item.id}" data-section="${section}" aria-label="Spend">➖</button>
-        </div>
-      ` : '';
-
       div.innerHTML = `
         <div class="item-content item-clickable" data-id="${item.id}" data-section="${section}">
           <div class="item-info">
@@ -268,7 +260,6 @@ function renderLists(){
           ${metaHTML}
           ${progressHTML}
         </div>
-        ${actionsHTML}
       `;
 
       container.appendChild(div);
@@ -413,6 +404,11 @@ function render(){
 
 function escapeHtml(text){ return (text+'').replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;","\"":"&quot;"})[c]); }
 
+function getSectionLabel(section){
+  const labels = { accounts: 'account', budget: 'budget', bills: 'bill', goals: 'goal' };
+  return labels[section] || section;
+}
+
 // Actions
 function addItem({name,amount,neededAmount,due,section,enableSpending}){
   if(section === 'accounts'){
@@ -424,7 +420,7 @@ function addItem({name,amount,neededAmount,due,section,enableSpending}){
     state.items = state.items || {};
     state.items[section] = state.items[section] || [];
     const finalNeededAmount = neededAmount !== undefined ? parseFloat(neededAmount) : parseFloat(amount);
-    const spendingEnabled = enableSpending !== undefined ? enableSpending : false;
+    const spendingEnabled = enableSpending !== undefined ? enableSpending : true;
     state.items[section].push({id:uid(),name,amount: parseFloat(amount)||0,neededAmount: finalNeededAmount||0,due,spent:[],enableSpending: spendingEnabled});
     recordAction({ type: 'add', name, section, date: new Date().toISOString() });
   }
@@ -890,7 +886,7 @@ function showEditAmountForm(section, itemId, currentAmount) {
   const modal = document.createElement('div');
   modal.className = 'modal';
 
-  const title = `Edit Amount for ${section.slice(0, -1)}`;
+  const title = `Edit Amount for ${getSectionLabel(section)}`;
 
   modal.innerHTML = `
     <h3>${title}</h3>
@@ -959,7 +955,7 @@ function showItemForm(section, itemId = null) {
   const modal = document.createElement('div');
   modal.className = 'modal';
 
-  const title = isEdit ? `Edit ${section.slice(0, -1)}` : `Add ${section.slice(0, -1)}`;
+  const title = isEdit ? `Edit ${getSectionLabel(section)}` : `Add ${getSectionLabel(section)}`;
 
   let dueControlHtml = '';
   if (section === 'accounts') {
@@ -1008,27 +1004,17 @@ function showItemForm(section, itemId = null) {
     }
   }
 
-  // Enable Spending toggle (only for budget, bills, goals - not accounts)
-  // Default to unchecked for new items, preserve existing value for edits
-  const enableSpendingChecked = isEdit && item ? (item.enableSpending !== false) : false;
-  const enableSpendingHtml = section !== 'accounts' ? `
-    <label class="toggle-label">
-      <input id="_item_enable_spending" type="checkbox" ${enableSpendingChecked ? 'checked' : ''}>
-      Enable Spending
-    </label>
-  ` : '';
-
   modal.innerHTML = `
     <h3>${title}</h3>
     <label>Name<br><input id="_item_name" type="text" placeholder="Name" value="${isEdit && item ? escapeHtml(item.name) : ''}"></label>
     <label>Current Amount<br><input id="_item_amount" type="number" step="0.01" inputmode="decimal" placeholder="0.00" value="${currentAmountValue}"></label>
     ${section !== 'accounts' ? `<label>Needed Amount<br><input id="_item_needed_amount" type="number" step="0.01" inputmode="decimal" placeholder="0.00" value="${isEdit && item && item.neededAmount ? Number(item.neededAmount).toFixed(2) : ''}"></label>` : ''}
     ${dueControlHtml}
-    ${enableSpendingHtml}
     ${historyHtml}
     <div class="actions">
       ${isEdit ? '<button id="_item_delete" class="delBtn">Delete</button>' : ''}
       <button id="_item_cancel">Cancel</button>
+      ${isEdit && ['budget', 'goals'].includes(section) ? '<button id="_item_spend" class="spendBtn">Spend</button>' : ''}
       ${isEdit && section === 'bills' ? '<button id="_item_paid" class="paidBtn">Paid</button>' : ''}
       <button id="_item_ok">${isEdit ? 'Save' : 'Add'}</button>
     </div>
@@ -1058,6 +1044,13 @@ function showItemForm(section, itemId = null) {
   });
 
   if (isEdit) {
+    if (['budget', 'goals'].includes(section)) {
+      document.getElementById('_item_spend').addEventListener('click', async () => {
+        showSpendingForm(section, itemId);
+        cleanup();
+      });
+    }
+
     if (section === 'bills') {
       document.getElementById('_item_paid').addEventListener('click', async () => {
         zeroItemCurrentAmount(section, itemId);
@@ -1101,7 +1094,6 @@ function showItemForm(section, itemId = null) {
     const newAmount = amountValue === '' ? 0 : parseFloat(amountValue);
     const neededAmountValue = section !== 'accounts' ? document.getElementById('_item_needed_amount').value.trim() : '';
     const neededAmount = section !== 'accounts' ? (neededAmountValue === '' ? 0 : parseFloat(neededAmountValue)) : undefined;
-    const enableSpending = section !== 'accounts' ? document.getElementById('_item_enable_spending').checked : undefined;
 
     if (!name) {
       alert('Enter a name');
@@ -1133,13 +1125,13 @@ function showItemForm(section, itemId = null) {
           updateItemAmountAndResetSpent(section, itemId, newAmount);
         }
         // Update other fields
-        updateItem(section, itemId, { name, amount: item.amount, due, neededAmount, enableSpending });
+        updateItem(section, itemId, { name, amount: item.amount, due, neededAmount });
       } else {
         updateItem(section, itemId, { name, amount: newAmount, due });
       }
     } else {
       const finalNeededAmount = neededAmount !== undefined && !isNaN(neededAmount) ? neededAmount : newAmount;
-      addItem({ name, amount: newAmount, neededAmount: finalNeededAmount, due, section, enableSpending });
+      addItem({ name, amount: newAmount, neededAmount: finalNeededAmount, due, section, enableSpending: section !== 'accounts' ? true : undefined });
     }
 
     cleanup();
