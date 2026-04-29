@@ -159,15 +159,21 @@ body {
 
 .footer-last-action {
   font-family: var(--mono);
-  font-size: 11px;
+  font-size: 12px;
   color: var(--text-dim);
   cursor: pointer;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   max-width: 55vw;
-  margin-top: 2px;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.02em;
+}
+
+.footer-log {
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+  padding: 0 2px;
 }
 
 .history-list {
@@ -355,6 +361,33 @@ body {
   animation: fadeIn 0.15s ease;
 }
 
+body.modal-open {
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+html:has(body.modal-open) {
+  overscroll-behavior: none;
+}
+
+.sheet-overlay {
+  align-items: flex-end;
+  padding: 0;
+}
+
+.center-overlay {
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  padding-top: 20px;
+}
+
+.autofill-modal {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
 @keyframes fadeIn {
   from { opacity: 0; }
   to { opacity: 1; }
@@ -376,9 +409,21 @@ body {
   max-width: 460px;
   max-height: 90vh;
   overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
   color: inherit;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
   animation: slideDown 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.sheet-modal {
+  background: rgba(248, 245, 238, 0.96);
+  border: 1px solid rgba(14, 13, 11, 0.14);
+  border-bottom: none;
+  border-radius: 16px 16px 0 0;
+  box-shadow: 0 -12px 48px rgba(19, 16, 11, 0.16);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
 }
 
 @media (min-width: 600px) {
@@ -387,12 +432,25 @@ body {
     padding: 20px;
     padding-top: 20px;
   }
+  .sheet-overlay {
+    align-items: flex-end;
+    padding: 0;
+  }
   .modal {
     border-radius: var(--radius-md);
     border: 1px solid var(--border);
     padding-top: 20px;
     padding-bottom: 20px;
     max-height: calc(100vh - 40px);
+    animation: slideUp 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .sheet-modal {
+    width: min(760px, 100%);
+    max-height: 86vh;
+    border-radius: 16px 16px 0 0;
+    border-bottom: none;
+    padding-top: 22px;
+    padding-bottom: calc(22px + env(safe-area-inset-bottom));
     animation: slideUp 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   }
   @keyframes slideUp {
@@ -610,7 +668,7 @@ body {
   padding: 6px;
 }
 
-/* ---- Backup Section ---- */
+/* ---- Settings Accounts ---- */
 
 .settings-section {
   margin: 16px 0;
@@ -629,29 +687,76 @@ body {
   letter-spacing: 0.06em;
 }
 
-.section-visibility-list {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-}
-
-.section-visibility-list label {
+.settings-actions-row {
   display: flex;
-  align-items: center;
   gap: 8px;
-  font-size: 14px;
-  cursor: pointer;
-  color: var(--text-secondary);
+  margin-bottom: 12px;
 }
 
-.section-visibility-list label:hover {
+.settings-account-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.settings-account-empty {
+  color: var(--text-dim);
+  font-size: 13px;
+  padding: 8px 2px 2px;
+}
+
+.settings-account-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.settings-account-open {
+  flex: 1;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.46);
+  border-radius: 14px;
+  padding: 10px 12px;
+  cursor: pointer;
   color: var(--text);
 }
 
-.section-visibility-list input {
-  width: 16px;
-  height: 16px;
+.settings-account-name {
+  font-size: 14px;
+  font-weight: 600;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settings-account-value {
+  font-family: var(--mono);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+}
+
+.settings-account-remove {
+  appearance: none;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-secondary);
+  border-radius: 14px;
+  padding: 10px 12px;
   cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  min-height: 42px;
+}
+
+.settings-account-remove:hover {
+  color: var(--text);
+  border-color: var(--border-light);
 }
 
 .backup-section {
@@ -732,7 +837,7 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 10px 16px calc(10px + env(safe-area-inset-bottom)) 16px;
+  padding: 6px 14px calc(6px + env(safe-area-inset-bottom)) 14px;
   position: fixed;
   bottom: 0;
   left: 0;
@@ -749,6 +854,7 @@ body {
   display: flex;
   flex-direction: column;
   gap: 0;
+  flex: 1;
 }
 
 .available-amount {
@@ -782,30 +888,29 @@ body {
 
 .icon-btn {
   appearance: none;
-  border: 1px solid var(--border);
+  border: 0;
   background: transparent;
-  color: var(--text-secondary);
+  color: #111;
   font-weight: 600;
-  font-size: 16px;
-  border-radius: var(--radius);
-  padding: 10px;
-  min-width: 42px;
-  min-height: 42px;
+  font-size: 18px;
+  border-radius: 999px;
+  padding: 0 6px;
+  min-width: 34px;
+  min-height: 34px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.15s;
+  transition: opacity 0.15s, transform 0.15s;
   cursor: pointer;
 }
 
 .icon-btn:hover {
-  border-color: var(--border-light);
-  color: var(--text);
+  opacity: 0.68;
 }
 
 .icon-btn:active {
   transform: none;
-  background: var(--surface-up);
+  opacity: 0.5;
 }
 
 /* ---- Checkbox ---- */
@@ -1017,6 +1122,14 @@ body {
   overflow: hidden;
 }
 
+.autofill-scroll {
+  max-height: min(52vh, 420px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  min-height: 0;
+}
+
 .autofill-section-label {
   font-size: 11px;
   font-weight: 600;
@@ -1166,4 +1279,699 @@ body {
   background: transparent;
   color: var(--text-secondary);
   border-color: var(--border);
+}
+
+/* ---- Industrial Dark Override ---- */
+
+:root {
+  --bg: #0b0d0c;
+  --card: #111513;
+  --surface: #151a18;
+  --surface-up: #1b211f;
+  --border: rgba(200, 220, 195, 0.12);
+  --border-light: rgba(200, 220, 195, 0.2);
+  --text: #e8eee3;
+  --text-secondary: rgba(232, 238, 227, 0.7);
+  --text-dim: rgba(232, 238, 227, 0.42);
+  --amber: #d6bf2a;
+  --amber-dim: #a79b2a;
+  --amber-glow: rgba(214, 191, 42, 0.08);
+  --green: #45d16f;
+  --green-text: #45d16f;
+  --red: #d46353;
+  --red-text: #d46353;
+  --yellow: #d6bf2a;
+  --blue: #3d8bff;
+  --blue-text: #3d8bff;
+  --radius: 10px;
+  --radius-md: 12px;
+}
+
+body {
+  color-scheme: dark;
+  background:
+    radial-gradient(circle at top left, rgba(69, 209, 111, 0.08), transparent 35%),
+    radial-gradient(circle at bottom right, rgba(214, 191, 42, 0.06), transparent 28%),
+    linear-gradient(180deg, #0b0d0c 0%, #0f1311 100%);
+  color: var(--text);
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
+  background-size: 26px 26px;
+  mask-image: linear-gradient(180deg, rgba(0,0,0,0.5), rgba(0,0,0,0.1));
+  opacity: 0.18;
+}
+
+.app-hero,
+.stack-meta,
+.section-cards,
+.section-detail,
+.footer-bar,
+.modal,
+.summary-chip,
+.section-card,
+.item,
+.settings-section,
+.backup-section,
+.install-app-section,
+.account-card,
+.settings-account-open,
+.settings-account-remove {
+  border-color: rgba(200, 220, 195, 0.12);
+  box-shadow: none;
+}
+
+.available-amount #available,
+.summary-chip-value,
+.section-card-total-top,
+.detail-title,
+.detail-total,
+.item .item-amount,
+.settings-account-value,
+.autofill-total-amount,
+.autofill-item-amount,
+.autofill-rec-name,
+.modal h3,
+.settings-section h4 {
+  color: var(--text);
+}
+
+.available-amount #available {
+  color: var(--green-text);
+  text-shadow: 0 0 18px rgba(69, 209, 111, 0.14);
+}
+
+.summary-chip,
+.section-card,
+.item,
+.modal,
+.section-detail,
+.settings-section,
+.backup-section,
+.install-app-section,
+.settings-account-open,
+.settings-account-remove,
+.footer-bar,
+.footer-log {
+  background: rgba(18, 23, 21, 0.92);
+  border: 1px solid rgba(200, 220, 195, 0.12);
+  border-radius: var(--radius-md);
+}
+
+.summary-chip--accounts,
+.account-card,
+.section-card,
+.item,
+.settings-account-open,
+.settings-account-remove,
+.modal .actions button,
+.gist-buttons button,
+.backup-btn,
+.icon-btn {
+  border-radius: 8px;
+}
+
+.summary-chip-label,
+.available-label,
+.section-card-subtitle,
+.footer-last-action,
+.status,
+.modal label,
+.detail-subtitle,
+.item .meta,
+.settings-account-empty,
+.backup-section small,
+.install-app-section small {
+  color: var(--text-secondary);
+}
+
+.section-card--paper,
+.section-card--mint,
+.section-card--sand,
+.section-card--sky {
+  background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01)), rgba(18, 23, 21, 0.96);
+}
+
+.section-card-total-top,
+.summary-chip-value,
+.account-card .summary-chip-value {
+  color: var(--yellow);
+  text-shadow: 0 0 16px rgba(214, 191, 42, 0.12);
+}
+
+.section-card.is-active,
+.account-card:hover,
+.summary-chip:hover,
+.item:hover,
+.settings-account-open:hover,
+.settings-account-remove:hover,
+.icon-btn:hover {
+  border-color: rgba(69, 209, 111, 0.35);
+}
+
+.section-card {
+  background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)), #121715;
+}
+
+.section-card + .section-card {
+  margin-top: -14px;
+}
+
+.section-card-total-top {
+  font-size: 3.2rem;
+}
+
+.section-card-title,
+.summary-chip-label,
+.account-card .summary-chip-label {
+  color: #f1f5eb;
+}
+
+.account-card .summary-chip-value {
+  font-size: 2.05rem;
+}
+
+.account-card .summary-chip-value.liability,
+.settings-account-value.liability,
+.item-amount.liability {
+  color: var(--red-text);
+}
+
+.footer-bar {
+  background: rgba(13, 17, 15, 0.96);
+  border-top: 1px solid rgba(200, 220, 195, 0.12);
+}
+
+.footer-log {
+  color: var(--text-secondary);
+}
+
+.icon-btn {
+  color: var(--green-text);
+}
+
+.icon-btn:hover {
+  opacity: 1;
+  color: var(--yellow);
+}
+
+.icon-btn:active {
+  opacity: 0.8;
+}
+
+.sheet-modal,
+.section-detail {
+  background: linear-gradient(180deg, rgba(16, 21, 19, 0.98), rgba(11, 13, 12, 0.98));
+  border-color: rgba(200, 220, 195, 0.12);
+}
+
+.modal input[type="text"],
+.modal input[type="number"],
+.modal input[type="date"],
+.modal select,
+.gist-controls input {
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text);
+  border-color: rgba(200, 220, 195, 0.14);
+}
+
+.modal .actions button#_item_ok,
+.modal .actions button#_spend_ok,
+.modal .actions button#_af_fill,
+.gist-buttons button,
+.backup-btn {
+  background: rgba(69, 209, 111, 0.08);
+  color: var(--green-text);
+  border-color: rgba(69, 209, 111, 0.26);
+}
+
+.modal .actions button#_item_cancel,
+.modal .actions button#_spend_cancel,
+.modal .actions button#_af_cancel,
+.backup-btn,
+.settings-account-remove,
+.icon-btn {
+  background: transparent;
+}
+
+.modal .actions button#_item_delete,
+.settings-account-remove,
+.item .liability,
+.liability,
+.red-text {
+  color: var(--red-text);
+}
+
+.item-progress {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.item-progress-bar.good { background: var(--green); }
+.item-progress-bar.warning { background: var(--yellow); }
+.item-progress-bar.danger { background: var(--red); }
+
+.autofill-section-label {
+  background: rgba(255,255,255,0.03);
+  color: var(--yellow);
+  border-bottom-color: rgba(200, 220, 195, 0.12);
+}
+
+.autofill-item {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.autofill-item-amount,
+.autofill-total-amount,
+.autofill-rec-name {
+  color: var(--yellow);
+}
+
+.autofill-item-amount--unaffordable {
+  color: var(--red-text);
+}
+
+.detail-back-btn,
+.detail-add-btn {
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text);
+  border-color: rgba(200, 220, 195, 0.12);
+}
+
+.footer-right .detail-add-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 6px;
+  padding: 0;
+}
+
+.settings-account-open,
+.settings-account-remove,
+.backup-btn,
+.gist-buttons button {
+  color: var(--text);
+}
+
+.settings-account-value.asset,
+.asset,
+.positive-amount {
+  color: var(--green-text);
+}
+
+.section-detail,
+.sheet-modal {
+  box-shadow: 0 -18px 60px rgba(0, 0, 0, 0.45);
+}
+
+.modal-overlay {
+  background: rgba(0, 0, 0, 0.74);
+}
+
+.available-amount #available,
+.section-card-total-top,
+.summary-chip-value,
+.account-card .summary-chip-value {
+  letter-spacing: -0.08em;
+}
+
+.footer-bar .icon-btn {
+  min-width: 36px;
+  min-height: 36px;
+}
+
+.backup-btn:hover,
+.gist-buttons button:hover,
+.settings-account-remove:hover {
+  background: rgba(69, 209, 111, 0.06);
+}
+
+/* ---- Industrial Control Room Layout ---- */
+
+body {
+  padding: 18px 18px calc(env(safe-area-inset-bottom) + 62px) 18px;
+}
+
+body.detail-open {
+  overflow: hidden;
+}
+
+body.detail-open .app-hero,
+body.detail-open .section-cards,
+body.detail-open .stack-meta {
+  opacity: 0.18;
+  filter: blur(1px);
+  pointer-events: none;
+}
+
+.container.app-shell {
+  max-width: 760px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  position: relative;
+  z-index: 1;
+}
+
+.app-hero {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: calc(env(safe-area-inset-top) + 2px);
+}
+
+.hero-topline {
+  min-height: 8px;
+}
+
+.hero-available {
+  width: 100%;
+  align-items: center;
+}
+
+.available-amount #available {
+  font-family: var(--mono);
+  font-size: clamp(4rem, 18vw, 7.5rem);
+  line-height: 0.86;
+  font-weight: 700;
+  letter-spacing: -0.09em;
+  text-align: center;
+}
+
+.stack-meta,
+.account-cards,
+.detail-list-items {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+}
+
+.summary-chip,
+.account-card,
+.section-card,
+.item,
+.settings-account-open,
+.settings-account-remove,
+.sheet-modal,
+.section-detail,
+.footer-bar,
+.settings-section,
+.backup-section,
+.install-app-section {
+  position: relative;
+  overflow: hidden;
+}
+
+.summary-chip::before,
+.account-card::before,
+.section-card::before,
+.item::before,
+.sheet-modal::before,
+.section-detail::before,
+.settings-section::before,
+.backup-section::before,
+.install-app-section::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(255,255,255,0.035), transparent 18%, transparent 82%, rgba(0,0,0,0.28));
+}
+
+.summary-chip,
+.settings-account-open {
+  padding: 14px 16px;
+}
+
+.summary-chip-main {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-width: 0;
+}
+
+.summary-chip-label,
+.section-card-title,
+.detail-title {
+  font-family: var(--font);
+  font-size: 1.18rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.summary-chip-value,
+.account-card .summary-chip-value,
+.section-card-total-top {
+  font-family: var(--mono);
+  font-size: 2.4rem;
+  line-height: 0.88;
+  font-weight: 700;
+}
+
+.account-card .summary-chip-label {
+  font-size: 0.9rem;
+}
+
+.account-card .summary-chip-value {
+  font-size: 1.9rem;
+}
+
+.section-cards {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+  padding-bottom: 2px;
+}
+
+.planning-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.planning-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.planning-empty {
+  padding: 16px;
+  border: 1px solid rgba(200, 220, 195, 0.12);
+  border-radius: 8px;
+  background: rgba(18, 23, 21, 0.92);
+  color: var(--text-secondary);
+  font-family: var(--mono);
+  font-size: 0.78rem;
+}
+
+.section-card {
+  padding: 16px 16px 18px;
+  min-height: 110px;
+  display: flex;
+  align-items: flex-end;
+  cursor: pointer;
+}
+
+.section-card + .section-card {
+  margin-top: 0;
+}
+
+.section-card-top {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: end;
+  gap: 12px;
+}
+
+.section-card-title {
+  font-size: 0.92rem;
+  color: var(--text-secondary);
+}
+
+.section-card-total-top {
+  font-size: clamp(2.8rem, 12vw, 4.4rem);
+}
+
+.section-detail {
+  position: fixed;
+  inset: auto 0 0 0;
+  z-index: 1200;
+  min-height: 76vh;
+  max-height: 88vh;
+  padding: 16px 16px calc(env(safe-area-inset-bottom) + 16px);
+  overflow-y: auto;
+}
+
+.detail-header {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.detail-back-btn,
+.detail-add-btn,
+.icon-btn {
+  appearance: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.detail-total {
+  font-family: var(--mono);
+  font-size: 0.95rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.detail-subtitle,
+.item .meta,
+.footer-last-action,
+.status,
+.backup-section small,
+.install-app-section small,
+.settings-account-empty {
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+.list-items:empty::after {
+  background: rgba(255,255,255,0.02);
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.item {
+  padding: 14px 14px 12px;
+  border-radius: 8px;
+}
+
+.item .item-name {
+  font-size: 1rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.item .item-amount {
+  font-family: var(--mono);
+  font-size: 1.2rem;
+}
+
+.item-progress {
+  height: 3px;
+  border-radius: 0;
+}
+
+.footer-bar {
+  padding: 6px 10px calc(6px + env(safe-area-inset-bottom)) 10px;
+  gap: 10px;
+}
+
+.footer-log {
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+}
+
+.footer-right {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.icon-btn {
+  min-width: 40px;
+  min-height: 40px;
+  padding: 0;
+  font-size: 1rem;
+}
+
+.sheet-modal {
+  width: 100%;
+  max-width: 760px;
+  border-radius: 12px 12px 0 0;
+  border-bottom: 0;
+  padding: 18px 18px calc(env(safe-area-inset-bottom) + 18px);
+}
+
+.autofill-modal .autofill-freq-row,
+.autofill-modal .actions {
+  flex-shrink: 0;
+}
+
+.modal h3,
+.settings-section h4,
+.backup-section h4 {
+  font-size: 0.82rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+
+.modal label {
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.12em;
+}
+
+.modal input[type="text"],
+.modal input[type="number"],
+.modal input[type="date"],
+.modal select,
+.gist-controls input {
+  border-radius: 6px;
+}
+
+.settings-account-row {
+  align-items: stretch;
+}
+
+.settings-account-open,
+.settings-account-remove,
+.backup-btn,
+.gist-buttons button,
+.modal .actions button {
+  min-height: 40px;
+}
+
+.settings-account-remove {
+  padding-inline: 14px;
+}
+
+@media (min-width: 768px) {
+  body {
+    padding: 26px 26px calc(env(safe-area-inset-bottom) + 64px) 26px;
+  }
+
+  .section-cards {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .section-detail,
+  .sheet-modal {
+    left: 50%;
+    right: auto;
+    width: min(760px, calc(100vw - 36px));
+    transform: translateX(-50%);
+  }
 }
