@@ -25,6 +25,8 @@
   --green-text: #7bc48e;
   --red: #b05050;
   --red-text: #d47272;
+  --pink: #b85b8a;
+  --pink-text: #e48ab6;
   --yellow: #b89940;
   --blue: #4f86d9;
   --blue-text: #8db5f2;
@@ -119,8 +121,8 @@ body {
 }
 
 /* Semantic colors */
-.asset { color: var(--yellow); }
-.liability { color: var(--red-text); }
+.asset { color: var(--green-text); }
+.liability { color: var(--pink-text); }
 .positive-amount { color: var(--green-text); }
 
 /* ---- Layout ---- */
@@ -1883,6 +1885,8 @@ html:has(body.modal-open) {
   --green-text: #45d16f;
   --red: #d46353;
   --red-text: #d46353;
+  --pink: #e07aa7;
+  --pink-text: #f29cc0;
   --yellow: #d6bf2a;
   --blue: #3d8bff;
   --blue-text: #3d8bff;
@@ -2044,13 +2048,13 @@ body::before {
 
 .item .asset,
 .account-card .summary-chip-value.asset {
-  color: var(--yellow);
+  color: var(--green-text);
 }
 
 .account-card .summary-chip-value.liability,
 .settings-account-value.liability,
 .item-amount.liability {
-  color: var(--red-text);
+  color: var(--pink-text);
 }
 
 .footer-bar {
@@ -2113,7 +2117,10 @@ body::before {
 .modal .actions button#_item_delete,
 .settings-account-remove,
 .item .liability,
-.liability,
+.liability {
+  color: var(--pink-text);
+}
+
 .red-text {
   color: var(--red-text);
 }
@@ -2169,7 +2176,7 @@ body::before {
 
 .settings-account-value.asset,
 .asset {
-  color: var(--yellow);
+  color: var(--green-text);
 }
 
 .positive-amount {
