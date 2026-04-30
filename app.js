@@ -21,6 +21,7 @@ let availableBannerToken = 0;
 let availableBannerScrollRaf = 0;
 let autofillSelection = new Set();
 let autofillSelectionInitialized = false;
+let hasRenderedAvailableOnce = false;
 
 // Each item now has: id, name, amount, due, spent (array of {name, amount, date})
 
@@ -465,7 +466,7 @@ function renderPlanningEditor(item, isDraft=false){
         <button type="submit">Add</button>
       </div>` : `
       <div class="actions actions--bottom">
-        <button type="button" class="delBtn planning-delete-btn" data-inline-action="delete-planning" title="Delete" aria-label="Delete item">🗑</button>
+        <button type="button" class="delBtn planning-delete-btn" data-inline-action="delete-planning">Delete</button>
         <button type="button" data-inline-action="cancel">Cancel</button>
         <button type="submit">Save</button>
       </div>`;
@@ -803,6 +804,8 @@ function computeTotals(){
   }, 0);
 
   const available = totalAccounts - totalPlanning;
+  const previousAvailable = lastAvailableAmount;
+  const shouldAnimateAvailable = hasRenderedAvailableOnce && Math.abs(previousAvailable - available) > 0.005;
   
   const availableEl = $('available');
   if (availableEl) {
@@ -811,6 +814,8 @@ function computeTotals(){
   }
   updateAvailableBannerValue(available);
   lastAvailableAmount = available; // Update lastAvailableAmount after setting new value
+  if (shouldAnimateAvailable) triggerAvailableFlip();
+  hasRenderedAvailableOnce = true;
   return { accounts: totalAccounts, planning: totalPlanning, available };
 }
 
@@ -849,6 +854,15 @@ function isPageScrolledFromTop(){
 function updateAvailableBannerValue(value){
   const bannerValue = $('available-banner-value');
   if (bannerValue) bannerValue.textContent = formatCurrencyWhole(value);
+}
+
+function triggerAvailableFlip(){
+  const panels = [q('.available-amount'), q('.available-banner-inner')].filter(Boolean);
+  panels.forEach((panel) => {
+    panel.classList.remove('is-flipping');
+    void panel.offsetWidth;
+    panel.classList.add('is-flipping');
+  });
 }
 
 function showAvailableBanner(value){
