@@ -7,6 +7,7 @@
 
 :root {
   --bg: #141414;
+  --page-bg: var(--bg);
   --card: #1a1a1a;
   --surface: #1e1e1e;
   --surface-up: #252525;
@@ -40,7 +41,10 @@
   -webkit-tap-highlight-color: transparent;
 }
 
-html { scroll-behavior: smooth; }
+html {
+  scroll-behavior: smooth;
+  background: var(--page-bg);
+}
 
 body {
   color-scheme: dark;
@@ -50,7 +54,7 @@ body {
   margin: 0;
   padding: 16px 16px calc(env(safe-area-inset-bottom) + var(--header-height) + 20px) 16px;
   padding-top: calc(env(safe-area-inset-top, 0px) + 16px);
-  background: var(--bg);
+  background: var(--page-bg);
   color: var(--text);
   -webkit-overflow-scrolling: touch;
   min-height: 100vh;
@@ -1493,16 +1497,17 @@ html:has(body.modal-open) {
   --yellow: #d6bf2a;
   --blue: #3d8bff;
   --blue-text: #3d8bff;
+  --page-bg:
+    radial-gradient(circle at top left, rgba(69, 209, 111, 0.08), transparent 35%),
+    radial-gradient(circle at bottom right, rgba(214, 191, 42, 0.06), transparent 28%),
+    linear-gradient(180deg, #0b0d0c 0%, #0f1311 100%);
   --radius: 10px;
   --radius-md: 12px;
 }
 
 body {
   color-scheme: dark;
-  background:
-    radial-gradient(circle at top left, rgba(69, 209, 111, 0.08), transparent 35%),
-    radial-gradient(circle at bottom right, rgba(214, 191, 42, 0.06), transparent 28%),
-    linear-gradient(180deg, #0b0d0c 0%, #0f1311 100%);
+  background: var(--page-bg);
   color: var(--text);
 }
 
