@@ -17,9 +17,8 @@ let modalLockCount = 0;
 let modalScrollY = 0;
 let inlineRowState = null;
 let pendingInlineRowFocus = null;
-let hasComputedTotals = false;
 let availableBannerToken = 0;
-let availableBannerHideTimer = null;
+let availableBannerScrollRaf = 0;
 let autofillSelection = new Set();
 let autofillSelectionInitialized = false;
 
@@ -125,6 +124,15 @@ function createCenteredModalShell(){
   overlay.className = 'modal-overlay center-overlay';
   const modal = document.createElement('div');
   modal.className = 'modal';
+  return { overlay, modal };
+}
+
+function createSpendingModalShell(){
+  lockBodyScroll();
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay center-overlay spend-overlay';
+  const modal = document.createElement('div');
+  modal.className = 'modal spend-modal';
   return { overlay, modal };
 }
 
@@ -244,7 +252,7 @@ function normalizeState(input){
       amount,
       neededAmount: item.neededAmount !== undefined ? Number(item.neededAmount) || 0 : amount,
       spent,
-      enableSpending: item.enableSpending !== undefined ? !!item.enableSpending : true,
+      enableSpending: item.enableSpending !== undefined ? !!item.enableSpending : false,
       schedule
     };
   };
@@ -399,6 +407,9 @@ function renderPlanningEditor(item, isDraft=false){
   const dayValue = isDraft || !item ? 1 : (item.schedule?.recurring ? (item.schedule.dayOfMonth || 1) : 1);
   const dateValue = isDraft || !item || item.schedule?.recurring ? '' : (item.schedule?.date || '');
   const neededValue = isDraft ? '' : Number(item?.neededAmount !== undefined ? item.neededAmount : item?.amount || 0).toFixed(2);
+  const spendingEnabled = isDraft ? false : !!item?.enableSpending;
+  const spendAvailable = Number(currentAmountValue) > 0;
+  const spendingToggleId = `enableSpending_${item?.id || '__new__'}`;
   const history = !isDraft && item?.spent && item.spent.length > 0 ? (() => {
     let html = '<h4>Spend History</h4><ul class="spend-history-list">';
     for (let index = item.spent.length - 1; index >= 0; index--) {
@@ -412,22 +423,34 @@ function renderPlanningEditor(item, isDraft=false){
     html += '</ul>';
     return html;
   })() : '';
+  const bottomActions = isDraft ? `
+      <div class="actions actions--bottom">
+        <button type="submit">Add</button>
+      </div>` : `
+      <div class="actions actions--bottom">
+        <button type="button" class="delBtn planning-delete-btn" data-inline-action="delete-planning" title="Delete" aria-label="Delete item">🗑</button>
+        <button type="submit">Save</button>
+      </div>`;
 
   return `
     <form class="inline-editor inline-editor--planning" data-inline-submit="planning" data-section="planning" data-item-id="${item?.id || ''}" data-draft="${isDraft ? '1' : '0'}">
       <label>Name<br><input name="name" type="text" placeholder="Name" value="${escapeHtml(item?.name || '')}"></label>
       <label>Current Amount<br><input name="amount" type="number" data-clear-on-focus="1" step="0.01" inputmode="decimal" placeholder="0.00" value="${currentAmountValue}"></label>
-      <label>Needed Amount<br><input name="neededAmount" type="number" data-clear-on-focus="1" step="0.01" inputmode="decimal" placeholder="0.00" value="${neededValue}"></label>
+      <div class="needed-spending-row">
+        <label>Needed Amount<br><input name="neededAmount" type="number" data-clear-on-focus="1" step="0.01" inputmode="decimal" placeholder="0.00" value="${neededValue}"></label>
+        <label class="toggle-label spending-toggle" for="${spendingToggleId}">
+          <input id="${spendingToggleId}" name="enableSpending" type="checkbox" class="spending-toggle-input" ${spendingEnabled ? 'checked' : ''}>
+          <span>Spending</span>
+        </label>
+      </div>
+      <div class="spending-action-row" data-spend-available="${spendAvailable ? '1' : '0'}" data-spending-enabled="${spendingEnabled ? '1' : '0'}">
+        <button type="button" class="spendBtn planning-spend-btn" data-inline-action="spend" ${spendAvailable ? '' : 'disabled aria-hidden="true" tabindex="-1"' }>Spend</button>
+      </div>
       <label class="toggle-label"><input name="recurring" type="checkbox" ${recurring ? 'checked' : ''}>Recurring monthly</label>
       <label class="inline-toggle-target" data-toggle-wrap="day" style="${recurring ? '' : 'display:none;'}">Day of month<br><input name="day" type="number" min="1" max="31" inputmode="numeric" placeholder="1-31" value="${dayValue}"></label>
       <label class="inline-toggle-target" data-toggle-wrap="date" style="${recurring ? 'display:none;' : ''}">Target date<br><input name="date" type="date" value="${dateValue}"></label>
       ${history}
-      <div class="actions">
-        ${isDraft ? '' : '<button type="button" class="spendBtn" data-inline-action="spend">Spend</button>'}
-        ${isDraft ? '' : '<button type="button" class="delBtn" data-inline-action="delete-planning">Delete</button>'}
-        <button type="button" data-inline-action="cancel">Cancel</button>
-        <button type="submit">${isDraft ? 'Add' : 'Save'}</button>
-      </div>
+      ${bottomActions}
     </form>
   `;
 }
@@ -720,30 +743,20 @@ function computeTotals(){
 
   if (available !== currentAvailableAmount) {
     const direction = available > currentAvailableAmount ? 'up' : 'down';
-    const shouldShowBanner = hasComputedTotals && isPageScrolledFromTop();
-    const bannerToken = shouldShowBanner ? showAvailableBanner(currentAvailableAmount) : 0;
-    if (!shouldShowBanner) {
-      hideAvailableBanner();
-    }
     animateNumberChange(
       availableEl,
       currentAvailableAmount,
       available,
       1000,
       direction,
-      shouldShowBanner ? (value) => {
-        const bannerValue = $('available-banner-value');
-        if (bannerValue) bannerValue.textContent = formatCurrencyWhole(value);
-      } : null,
-      shouldShowBanner ? () => {
-        availableBannerHideTimer = setTimeout(() => hideAvailableBanner(bannerToken), 180);
-      } : null
+      null,
+      null
     );
   } else {
     availableEl.textContent = formatCurrencyWhole(available);
   }
+  updateAvailableBannerValue(available);
   lastAvailableAmount = available; // Update lastAvailableAmount after setting new value
-  hasComputedTotals = true;
   return { accounts: totalAccounts, planning: totalPlanning, available };
 }
 
@@ -808,18 +821,17 @@ function isPageScrolledFromTop(){
   return (window.scrollY || document.documentElement.scrollTop || 0) > 0;
 }
 
+function updateAvailableBannerValue(value){
+  const bannerValue = $('available-banner-value');
+  if (bannerValue) bannerValue.textContent = formatCurrencyWhole(value);
+}
+
 function showAvailableBanner(value){
   const banner = $('available-banner');
-  const bannerValue = $('available-banner-value');
-  if (!banner || !bannerValue) return 0;
-
-  if (availableBannerHideTimer) {
-    clearTimeout(availableBannerHideTimer);
-    availableBannerHideTimer = null;
-  }
+  if (!banner) return 0;
 
   availableBannerToken += 1;
-  bannerValue.textContent = formatCurrencyWhole(value);
+  updateAvailableBannerValue(value);
   banner.classList.add('is-visible');
   banner.setAttribute('aria-hidden', 'false');
   return availableBannerToken;
@@ -830,13 +842,27 @@ function hideAvailableBanner(token){
   const banner = $('available-banner');
   if (!banner) return;
 
-  if (availableBannerHideTimer) {
-    clearTimeout(availableBannerHideTimer);
-    availableBannerHideTimer = null;
-  }
-
   banner.classList.remove('is-visible');
   banner.setAttribute('aria-hidden', 'true');
+}
+
+function syncAvailableBannerVisibility(){
+  const hero = $('app-hero');
+  const heroBottom = hero ? hero.getBoundingClientRect().bottom : 0;
+  const shouldShow = hero ? heroBottom <= 0 : isPageScrolledFromTop();
+  if (shouldShow) {
+    showAvailableBanner(lastAvailableAmount);
+  } else {
+    hideAvailableBanner();
+  }
+}
+
+function scheduleAvailableBannerVisibilitySync(){
+  if (availableBannerScrollRaf) return;
+  availableBannerScrollRaf = requestAnimationFrame(() => {
+    availableBannerScrollRaf = 0;
+    syncAvailableBannerVisibility();
+  });
 }
 
 function centerOpenInlineRow(){
@@ -860,6 +886,7 @@ function render(){
   renderAccountCards();
   renderPlanningList(totals);
   centerOpenInlineRow();
+  syncAvailableBannerVisibility();
 }
 
 function escapeHtml(text){ return (text+'').replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;","\"":"&quot;"})[c]); }
@@ -874,18 +901,24 @@ function addItem({name,amount,neededAmount,schedule,due,section,enableSpending})
   if(section === 'accounts'){
     // accounts have different structure: name, amount, isPositive
     state.accounts = state.accounts || [];
-    state.accounts.push({id:uid(), name, amount: parseFloat(amount)||0, isPositive: due === true}); // due used as isPositive flag
+    const id = uid();
+    state.accounts.push({id, name, amount: parseFloat(amount)||0, isPositive: due === true}); // due used as isPositive flag
     recordAction({ type: 'add', name, section: 'accounts', date: new Date().toISOString() });
+    saveLocal(); render();
+    autosaveToGist();
+    return id;
   } else {
     state.items = state.items || {};
     state.items.planning = state.items.planning || [];
     const finalNeededAmount = neededAmount !== undefined ? parseFloat(neededAmount) : parseFloat(amount);
-    const spendingEnabled = enableSpending !== undefined ? enableSpending : true;
-    state.items.planning.push({id:uid(),name,amount: parseFloat(amount)||0,neededAmount: finalNeededAmount||0,schedule,spent:[],enableSpending: spendingEnabled});
+    const spendingEnabled = enableSpending !== undefined ? enableSpending : false;
+    const id = uid();
+    state.items.planning.push({id,name,amount: parseFloat(amount)||0,neededAmount: finalNeededAmount||0,schedule,spent:[],enableSpending: spendingEnabled});
     recordAction({ type: 'add', name, section: 'planning', date: new Date().toISOString() });
+    saveLocal(); render();
+    autosaveToGist();
+    return id;
   }
-  saveLocal(); render();
-  autosaveToGist();
 }
 
 function updateItem(section, id, {name, amount, due, schedule, neededAmount, enableSpending}){
@@ -1043,7 +1076,9 @@ function handleInlineSubmit(form){
     const isPositive = form.querySelector('[name="isPositive"]').checked;
     if (isDraft) {
       closeInlineRow();
-      addItem({ name, amount: newAmount, due: isPositive, section: 'accounts' });
+      const newId = addItem({ name, amount: newAmount, due: isPositive, section: 'accounts' });
+      pendingInlineRowFocus = { section: 'accounts', key: newId };
+      render();
       return;
     }
 
@@ -1063,6 +1098,7 @@ function handleInlineSubmit(form){
   const neededAmountValue = form.querySelector('[name="neededAmount"]').value.trim();
   const parsedNeededAmount = neededAmountValue === '' ? newAmount : parseFloat(neededAmountValue);
   const neededAmount = Number.isNaN(parsedNeededAmount) ? newAmount : parsedNeededAmount;
+  const enableSpending = form.querySelector('[name="enableSpending"]').checked;
   const recurring = form.querySelector('[name="recurring"]').checked;
   let schedule;
   if (recurring) {
@@ -1083,7 +1119,9 @@ function handleInlineSubmit(form){
 
   if (isDraft) {
     closeInlineRow();
-    addItem({ name, amount: newAmount, neededAmount, schedule, due: undefined, section, enableSpending: true });
+    const newId = addItem({ name, amount: newAmount, neededAmount, schedule, due: undefined, section, enableSpending });
+    pendingInlineRowFocus = { section, key: newId };
+    render();
     return;
   }
 
@@ -1094,6 +1132,7 @@ function handleInlineSubmit(form){
   item.name = name;
   item.schedule = schedule;
   item.neededAmount = neededAmount;
+  item.enableSpending = enableSpending;
   if (amountChanged) {
     item.amount = newAmount;
     item.spent = [];
@@ -1122,13 +1161,22 @@ function handleInlineClick(e){
     return;
   }
 
+  const spendDeleteBtn = e.target.closest('.delete-spend-btn');
+  const section = row.dataset.inlineSection;
+  const key = row.dataset.inlineKey;
+  const itemId = key === '__new__' ? null : key;
+  if (spendDeleteBtn && section === 'planning' && itemId) {
+    const index = parseInt(spendDeleteBtn.dataset.index, 10);
+    if (Number.isInteger(index)) {
+      deleteSpendEntry(section, itemId, index);
+    }
+    return;
+  }
+
   const actionBtn = e.target.closest('[data-inline-action]');
   if (!actionBtn) return;
 
   const action = actionBtn.dataset.inlineAction;
-  const section = row.dataset.inlineSection;
-  const key = row.dataset.inlineKey;
-  const itemId = key === '__new__' ? null : key;
 
   if (action === 'cancel' || action === 'close') {
     closeInlineRow();
@@ -1136,6 +1184,9 @@ function handleInlineClick(e){
   }
 
   if (action === 'spend' && section === 'planning' && itemId) {
+    const spendingToggle = row.querySelector('[name="enableSpending"]');
+    const spendingEnabled = spendingToggle ? spendingToggle.checked : !!(state.items.planning || []).find(i => i.id === itemId)?.enableSpending;
+    if (!spendingEnabled) return;
     showSpendingForm(section, itemId);
     return;
   }
@@ -1207,6 +1258,8 @@ function setupUI(){
   loadLocal(); render();
 
   document.addEventListener('focusin', (e) => clearAmountOnFocus(e.target));
+  window.addEventListener('scroll', scheduleAvailableBannerVisibilitySync, { passive: true });
+  window.addEventListener('resize', scheduleAvailableBannerVisibilitySync);
 
   const planningList = $('planning-list');
   if (planningList) {
@@ -1240,6 +1293,11 @@ function setupUI(){
       const planningForm = e.target.closest('form[data-inline-submit="planning"]');
       if (planningForm && e.target.name === 'recurring') {
         syncPlanningInlineSchedule(planningForm);
+      }
+
+      if (planningForm && e.target.name === 'enableSpending') {
+        const spendingActionRow = planningForm.querySelector('.spending-action-row');
+        if (spendingActionRow) spendingActionRow.dataset.spendingEnabled = e.target.checked ? '1' : '0';
       }
 
       if (e.target.id === 'import-file') {
@@ -1435,21 +1493,16 @@ function showSpendingForm(section, itemId){
   if(!item) return;
 
   // Create modal overlay
-  const { overlay, modal } = createModalShell();
-  
-  // Build account selector options
-  let accountOptions = '<option value="">-- No account change --</option>';
-  (state.accounts || []).forEach(acc=>{
-    const label = acc.isPositive ? '✓ Asset' : '✗ Liability';
-    accountOptions += `<option value="${acc.id}">${escapeHtml(acc.name)} (${label} $${Number(acc.amount).toFixed(2)})</option>`;
-  });
-  
+  const { overlay, modal } = createSpendingModalShell();
+
   modal.innerHTML = `
     <h3>Add spending to "${escapeHtml(item.name)}"</h3>
     <label>Name<br><input id="_spend_name" type="text" placeholder="e.g. Groceries"></label>
     <label>Amount<br><input id="_spend_amt" type="number" data-clear-on-focus="1" step="0.01" inputmode="decimal" placeholder="0.00"></label>
-    <label>Charge to account<br><select id="_spend_account">${accountOptions}</select></label>
-    <div class="actions"><button id="_spend_cancel">Cancel</button><button id="_spend_ok">Add</button></div>
+    <div class="actions">
+      <button id="_spend_cancel">Cancel</button>
+      <button id="_spend_ok">Add Spend</button>
+    </div>
   `;
   overlay.appendChild(modal);
   document.body.appendChild(overlay);
@@ -1465,31 +1518,17 @@ function showSpendingForm(section, itemId){
 
   clearOnFirstFocus(document.getElementById('_spend_amt'));
 
-  // session remember: default account selection stored in sessionStorage
-  try{
-    const pref = sessionStorage.getItem('spend_charge_credit_default');
-    if(pref !== null){
-      document.getElementById('_spend_account').value = pref;
-    }
-  }catch(e){ /* ignore */ }
-
-  // when user selects account, remember preference for this browser session
-  document.getElementById('_spend_account').addEventListener('change', (e)=>{
-    try{ sessionStorage.setItem('spend_charge_credit_default', e.target.value); }catch(err){}
-  });
-
   document.getElementById('_spend_cancel').addEventListener('click', ()=> cleanup());
   document.getElementById('_spend_ok').addEventListener('click', ()=>{
     const spendName = document.getElementById('_spend_name').value.trim();
     const spendAmtValue = document.getElementById('_spend_amt').value.trim();
     const spendAmount = spendAmtValue === '' ? 0 : parseFloat(spendAmtValue);
-    const chargeAccountId = document.getElementById('_spend_account').value.trim();
     
     if(!spendName){ alert('Enter a name for the spend'); return; }
     if(spendAmount <= 0){ alert('Enter a valid amount greater than 0'); return; }
 
     // record spent on the item
-    addSpending(section, itemId, spendName, spendAmount, chargeAccountId);
+    addSpending(section, itemId, spendName, spendAmount);
 
     render();
     autosaveToGist();

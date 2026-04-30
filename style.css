@@ -71,7 +71,7 @@ body {
   left: 0;
   right: 0;
   z-index: 1200;
-  padding: calc(env(safe-area-inset-top, 0px) + 8px) 16px 10px;
+  padding: 0 16px 10px;
   transform: translateY(-112%);
   opacity: 0;
   transition: transform 220ms cubic-bezier(0.22, 1, 0.36, 1), opacity 160ms ease;
@@ -87,10 +87,11 @@ body {
   max-width: 760px;
   margin: 0 auto;
   display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  gap: 12px;
-  padding: 12px 16px;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 2px;
+  padding: 10px 16px 12px;
   border: 1px solid var(--border);
   border-radius: calc(var(--radius-md) + 4px);
   background: linear-gradient(180deg, rgba(18, 23, 21, 0.98), rgba(12, 15, 14, 0.96));
@@ -99,19 +100,22 @@ body {
 }
 
 .available-banner-label {
-  font-size: 12px;
+  font-size: 11px;
   color: var(--text-dim);
   text-transform: uppercase;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.16em;
   font-weight: 700;
+  text-align: center;
 }
 
 .available-banner-value {
   font-family: var(--mono);
-  font-size: 18px;
+  font-size: clamp(24px, 6vw, 34px);
   font-weight: 700;
-  letter-spacing: -0.03em;
+  line-height: 0.95;
+  letter-spacing: -0.05em;
   color: var(--amber);
+  text-align: center;
 }
 
 /* Semantic colors */
@@ -417,6 +421,28 @@ body {
   cursor: pointer;
 }
 
+.inline-row[data-inline-key="__new__"] .inline-row-toggle,
+.inline-row[data-inline-key="log"] .inline-row-toggle,
+.inline-row[data-inline-key="autofill"] .inline-row-toggle,
+.inline-row[data-inline-key="settings"] .inline-row-toggle {
+  align-items: center;
+}
+
+.inline-row[data-inline-key="__new__"] .inline-row-toggle .item-info,
+.inline-row[data-inline-key="log"] .inline-row-toggle .item-info,
+.inline-row[data-inline-key="autofill"] .inline-row-toggle .item-info,
+.inline-row[data-inline-key="settings"] .inline-row-toggle .item-info {
+  justify-content: center;
+}
+
+.inline-row[data-inline-key="__new__"] .inline-row-toggle .item-name,
+.inline-row[data-inline-key="log"] .inline-row-toggle .item-name,
+.inline-row[data-inline-key="autofill"] .inline-row-toggle .item-name,
+.inline-row[data-inline-key="settings"] .inline-row-toggle .item-name {
+  width: 100%;
+  text-align: center;
+}
+
 .inline-row.is-open {
   border-color: rgba(69, 209, 111, 0.28);
 }
@@ -525,6 +551,102 @@ body {
   flex-wrap: wrap;
 }
 
+.inline-editor--planning .actions--spend {
+  justify-content: stretch;
+}
+
+.inline-editor--planning .actions--bottom {
+  align-items: stretch;
+}
+
+.inline-editor--planning label,
+.inline-editor--planning .inline-toggle-target,
+.inline-editor--planning .toggle-label {
+  color: var(--text);
+}
+
+.inline-editor--planning .needed-spending-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.inline-editor--planning .needed-spending-row > label:first-child {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.inline-editor--planning .spending-toggle {
+  flex: 0 0 auto;
+  min-width: 0;
+  margin-bottom: 0;
+}
+
+.inline-editor--planning .spending-toggle-input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--amber);
+  margin: 0;
+  flex: 0 0 auto;
+}
+
+.inline-editor--planning .spending-action-row {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 8px;
+}
+
+.inline-editor--planning .spending-action-row .planning-spend-btn {
+  display: none;
+  flex: 0 0 auto;
+  min-width: 110px;
+  padding: 10px 20px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border-light);
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: var(--font);
+  min-height: 42px;
+  transition: background 0.1s, border-color 0.1s, color 0.1s, box-shadow 0.1s, transform 0.1s;
+  align-items: center;
+  justify-content: center;
+  appearance: none;
+  box-shadow: none;
+}
+
+.inline-editor--planning .spending-action-row[data-spend-available="1"][data-spending-enabled="1"] .planning-spend-btn {
+  display: inline-flex;
+}
+
+.inline-editor--planning .spending-action-row .planning-spend-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.03);
+  border-color: var(--amber-dim);
+  color: var(--amber);
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.18);
+  transform: translateY(-1px);
+}
+
+.inline-editor--planning .spending-action-row .planning-spend-btn:active:not(:disabled) {
+  background: rgba(255, 255, 255, 0.06);
+  box-shadow: none;
+  transform: translateY(0);
+}
+
+.inline-editor--planning .spending-action-row .planning-spend-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.inline-editor--planning input[type="text"],
+.inline-editor--planning input[type="number"],
+.inline-editor--planning input[type="date"],
+.inline-editor--planning select {
+  color: var(--text);
+}
+
 .inline-editor .actions button,
 .inline-body-inline .actions button,
 .autofill-inline-form .actions button {
@@ -542,6 +664,21 @@ body {
   flex: 1 1 120px;
 }
 
+.inline-editor .actions button:hover,
+.inline-body-inline .actions button:hover,
+.autofill-inline-form .actions button:hover {
+  transform: translateY(-1px);
+  border-color: var(--amber-dim);
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.2);
+}
+
+.inline-editor .actions button:active,
+.inline-body-inline .actions button:active,
+.autofill-inline-form .actions button:active {
+  transform: translateY(0);
+  box-shadow: none;
+}
+
 .inline-editor .actions button[type="submit"],
 .autofill-inline-form .actions button[type="submit"] {
   background: var(--amber);
@@ -550,19 +687,75 @@ body {
   flex: 1;
 }
 
+.inline-editor .actions button[type="submit"]:hover,
+.autofill-inline-form .actions button[type="submit"]:hover {
+  background: var(--amber-dim);
+  border-color: var(--amber-dim);
+}
+
 .inline-editor .actions button.delBtn {
   color: var(--red-text);
+}
+
+.inline-editor--planning .actions button.planning-delete-btn {
+  flex: 0 0 42px;
+  width: 42px;
+  min-width: 42px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  line-height: 1;
+}
+
+.inline-editor--planning .actions button.planning-delete-btn:hover {
+  background: rgba(176, 80, 80, 0.12);
+  border-color: var(--red-text);
+  color: var(--red-text);
+}
+
+.inline-editor--planning .actions button.planning-delete-btn:active {
+  background: rgba(176, 80, 80, 0.18);
 }
 
 .inline-editor .actions button[data-inline-action="spend"] {
   background: var(--blue);
   border-color: var(--blue);
   color: #141414;
+  flex: 1 1 160px;
+}
+
+.inline-editor .actions button[data-inline-action="spend"]:hover {
+  background: var(--blue-text);
+  border-color: var(--blue-text);
+}
+
+.inline-editor--planning .actions--bottom button[type="submit"] {
+  flex: 1 1 0;
+}
+
+.inline-editor--planning .actions--bottom button[type="submit"]:hover {
+  background: var(--amber);
+  border-color: var(--amber);
+  color: #141414;
+  box-shadow: 0 8px 18px rgba(200, 164, 78, 0.22);
+}
+
+.inline-editor--planning .actions--bottom button[type="submit"]:active {
+  background: var(--amber);
+  border-color: var(--amber);
+  color: #141414;
 }
 
 @media (max-width: 599px) {
-  .inline-editor .actions button[data-inline-action="spend"] {
-    flex-basis: 100%;
+  .inline-editor--planning .actions button.planning-delete-btn {
+    flex-basis: 42px;
+    width: 42px;
+  }
+
+  .inline-editor--planning .spending-action-row .planning-spend-btn {
+    flex: 1 1 100%;
     width: 100%;
   }
 }
@@ -590,6 +783,20 @@ body {
   width: 30px;
   height: 30px;
   flex: 0 0 auto;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s, transform 0.15s;
+}
+
+.inline-row .delete-spend-btn:hover {
+  background: rgba(176, 80, 80, 0.12);
+  border-color: var(--red-text);
+  color: var(--red-text);
+  transform: translateY(-1px);
+}
+
+.inline-row .delete-spend-btn:active {
+  background: rgba(176, 80, 80, 0.18);
+  transform: translateY(0);
 }
 
 .inline-body-inline .gist-buttons {
@@ -671,6 +878,80 @@ html:has(body.modal-open) {
   color: inherit;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
   animation: slideDown 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.modal.spend-modal {
+  width: min(620px, 100%);
+  border-radius: 16px;
+  background: linear-gradient(180deg, rgba(20, 24, 22, 0.98), rgba(15, 18, 16, 0.98));
+  border: 1px solid rgba(200, 220, 195, 0.12);
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.55);
+}
+
+.spend-overlay.center-overlay {
+  padding: 16px;
+}
+
+.modal.spend-modal h3 {
+  margin-bottom: 16px;
+}
+
+.modal.spend-modal label {
+  color: var(--text);
+}
+
+.modal.spend-modal input[type="text"],
+.modal.spend-modal input[type="number"],
+.modal.spend-modal select {
+  background: var(--surface-up);
+  color: var(--text);
+  border-color: rgba(200, 220, 195, 0.14);
+}
+
+.modal.spend-modal input:focus,
+.modal.spend-modal select:focus {
+  border-color: var(--amber-dim);
+  box-shadow: 0 0 0 1px var(--amber-glow);
+}
+
+.modal.spend-modal .actions {
+  margin-top: 14px;
+}
+
+.modal.spend-modal .actions button {
+  flex: 1;
+}
+
+.modal.spend-modal .actions button#_spend_cancel {
+  background: transparent;
+  border-color: var(--border-light);
+  color: var(--text-secondary);
+}
+
+.modal.spend-modal .actions button#_spend_cancel:hover {
+  background: rgba(255, 255, 255, 0.03);
+  border-color: var(--border-light);
+  color: var(--text);
+}
+
+.modal.spend-modal .actions button#_spend_ok {
+  background: var(--amber);
+  border-color: var(--amber);
+  color: #141414;
+}
+
+.modal.spend-modal .actions button#_spend_ok:hover {
+  background: var(--amber-dim);
+  border-color: var(--amber-dim);
+}
+
+.modal.spend-modal .actions button#_spend_ok:active {
+  background: var(--amber);
+  border-color: var(--amber);
+}
+
+.modal.spend-modal .actions button {
+  flex: 1;
 }
 
 .sheet-modal {
