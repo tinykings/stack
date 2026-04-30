@@ -17,6 +17,9 @@ let modalLockCount = 0;
 let modalScrollY = 0;
 let inlineRowState = null;
 let pendingInlineRowFocus = null;
+let hasComputedTotals = false;
+let availableBannerToken = 0;
+let availableBannerHideTimer = null;
 let autofillSelection = new Set();
 let autofillSelectionInitialized = false;
 
@@ -717,15 +720,34 @@ function computeTotals(){
 
   if (available !== currentAvailableAmount) {
     const direction = available > currentAvailableAmount ? 'up' : 'down';
-    animateNumberChange(availableEl, currentAvailableAmount, available, 1000, direction);
+    const shouldShowBanner = hasComputedTotals && isPageScrolledFromTop();
+    const bannerToken = shouldShowBanner ? showAvailableBanner(currentAvailableAmount) : 0;
+    if (!shouldShowBanner) {
+      hideAvailableBanner();
+    }
+    animateNumberChange(
+      availableEl,
+      currentAvailableAmount,
+      available,
+      1000,
+      direction,
+      shouldShowBanner ? (value) => {
+        const bannerValue = $('available-banner-value');
+        if (bannerValue) bannerValue.textContent = formatCurrency(value);
+      } : null,
+      shouldShowBanner ? () => {
+        availableBannerHideTimer = setTimeout(() => hideAvailableBanner(bannerToken), 180);
+      } : null
+    );
+  } else {
+    availableEl.textContent = formatCurrency(available);
   }
-
-  availableEl.textContent = formatCurrency(available);
   lastAvailableAmount = available; // Update lastAvailableAmount after setting new value
+  hasComputedTotals = true;
   return { accounts: totalAccounts, planning: totalPlanning, available };
 }
 
-function animateNumberChange(element, startValue, endValue, duration, direction) {
+function animateNumberChange(element, startValue, endValue, duration, direction, onFrame, onComplete) {
   let startTime;
   const easing = t => t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t; // Ease-in-out
 
@@ -742,11 +764,13 @@ function animateNumberChange(element, startValue, endValue, duration, direction)
 
     const currentValue = startValue + (endValue - startValue) * easedProgress;
     element.textContent = '$' + currentValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    if (onFrame) onFrame(currentValue, progress);
 
     if (progress < 1) {
       requestAnimationFrame(animate);
     } else {
       element.style.color = '';
+      if (onComplete) onComplete();
     }
   }
   requestAnimationFrame(animate);
@@ -778,6 +802,41 @@ function renderFooterAction(){
   }
   el.style.display = '';
   el.textContent = formatActionText(history[0]);
+}
+
+function isPageScrolledFromTop(){
+  return (window.scrollY || document.documentElement.scrollTop || 0) > 0;
+}
+
+function showAvailableBanner(value){
+  const banner = $('available-banner');
+  const bannerValue = $('available-banner-value');
+  if (!banner || !bannerValue) return 0;
+
+  if (availableBannerHideTimer) {
+    clearTimeout(availableBannerHideTimer);
+    availableBannerHideTimer = null;
+  }
+
+  availableBannerToken += 1;
+  bannerValue.textContent = formatCurrency(value);
+  banner.classList.add('is-visible');
+  banner.setAttribute('aria-hidden', 'false');
+  return availableBannerToken;
+}
+
+function hideAvailableBanner(token){
+  if (token && token !== availableBannerToken) return;
+  const banner = $('available-banner');
+  if (!banner) return;
+
+  if (availableBannerHideTimer) {
+    clearTimeout(availableBannerHideTimer);
+    availableBannerHideTimer = null;
+  }
+
+  banner.classList.remove('is-visible');
+  banner.setAttribute('aria-hidden', 'true');
 }
 
 function centerOpenInlineRow(){
