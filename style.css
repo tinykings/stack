@@ -733,10 +733,32 @@ body {
   flex: 1;
 }
 
+.autofill-inline-form .actions button[type="submit"] {
+  background: rgba(69, 209, 111, 0.08);
+  border-color: rgba(69, 209, 111, 0.26);
+  color: var(--green-text);
+}
+
+.inline-editor--account .actions button[type="submit"] {
+  background: rgba(69, 209, 111, 0.08);
+  border-color: rgba(69, 209, 111, 0.26);
+  color: var(--green-text);
+}
+
 .inline-editor .actions button[type="submit"]:hover,
 .autofill-inline-form .actions button[type="submit"]:hover {
   background: var(--amber-dim);
   border-color: var(--amber-dim);
+}
+
+.autofill-inline-form .actions button[type="submit"]:hover {
+  background: rgba(69, 209, 111, 0.08);
+  border-color: rgba(69, 209, 111, 0.26);
+}
+
+.inline-editor--account .actions button[type="submit"]:hover {
+  background: rgba(69, 209, 111, 0.08);
+  border-color: rgba(69, 209, 111, 0.26);
 }
 
 .inline-editor .actions button.delBtn {
@@ -2141,6 +2163,11 @@ body::before {
 .backup-btn {
   background: rgba(69, 209, 111, 0.08);
   color: var(--green-text);
+  border-color: rgba(69, 209, 111, 0.26);
+}
+
+.modal .actions button#_af_fill:hover:not(:disabled) {
+  background: rgba(69, 209, 111, 0.08);
   border-color: rgba(69, 209, 111, 0.26);
 }
 
