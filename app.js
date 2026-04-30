@@ -87,8 +87,7 @@ function isInlineRowOpen(section, key){
 function ensureAutofillSelection(){
   if (autofillSelectionInitialized) return;
 
-  const storedFreq = localStorage.getItem(AUTOFILL_FREQ_KEY) || 'biweekly';
-  const storedStartDate = localStorage.getItem(AUTOFILL_START_DATE_KEY) || '';
+  const { frequency: storedFreq, startDate: storedStartDate } = getAutofillPreferences();
   const eligible = getAutoFillItems();
   const withPerCheck = eligible.map(e => {
     const checks = e.dueDate ? checksUntilDate(e.dueDate, storedFreq, storedStartDate) : 1;
@@ -107,6 +106,32 @@ function ensureAutofillSelection(){
 
   autofillSelection = selected;
   autofillSelectionInitialized = true;
+}
+
+function getAutofillPreferences(){
+  const paySchedule = state.paySchedule && typeof state.paySchedule === 'object' ? state.paySchedule : null;
+  const hasFrequency = paySchedule && Object.prototype.hasOwnProperty.call(paySchedule, 'frequency');
+  const hasStartDate = paySchedule && Object.prototype.hasOwnProperty.call(paySchedule, 'startDate');
+  return {
+    frequency: hasFrequency ? (paySchedule.frequency || 'biweekly') : (localStorage.getItem(AUTOFILL_FREQ_KEY) || 'biweekly'),
+    startDate: hasStartDate ? (paySchedule.startDate || '') : (localStorage.getItem(AUTOFILL_START_DATE_KEY) || '')
+  };
+}
+
+function saveAutofillPreferences(frequency, startDate){
+  state.paySchedule = {
+    ...(state.paySchedule && typeof state.paySchedule === 'object' ? state.paySchedule : {}),
+    frequency: frequency || 'biweekly',
+    startDate: startDate || ''
+  };
+
+  localStorage.setItem(AUTOFILL_FREQ_KEY, state.paySchedule.frequency);
+  if (state.paySchedule.startDate) {
+    localStorage.setItem(AUTOFILL_START_DATE_KEY, state.paySchedule.startDate);
+  } else {
+    localStorage.removeItem(AUTOFILL_START_DATE_KEY);
+  }
+  saveLocal();
 }
 
 function createModalShell(){
@@ -185,6 +210,13 @@ function normalizeState(input){
     credit: 0,
     ...(raw.balances && typeof raw.balances === 'object' ? raw.balances : {})
   };
+
+  normalized.paySchedule = raw.paySchedule && typeof raw.paySchedule === 'object'
+    ? {
+        frequency: raw.paySchedule.frequency || 'biweekly',
+        startDate: raw.paySchedule.startDate || ''
+      }
+    : null;
 
   normalized.items = { planning: [] };
   normalized.actionHistory = Array.isArray(raw.actionHistory) ? raw.actionHistory.slice() : [];
@@ -291,9 +323,13 @@ function loadLocal(){
   if (state.paySchedule) {
     if (state.paySchedule.frequency) {
       localStorage.setItem(AUTOFILL_FREQ_KEY, state.paySchedule.frequency);
+    } else {
+      localStorage.removeItem(AUTOFILL_FREQ_KEY);
     }
     if (state.paySchedule.startDate) {
       localStorage.setItem(AUTOFILL_START_DATE_KEY, state.paySchedule.startDate);
+    } else {
+      localStorage.removeItem(AUTOFILL_START_DATE_KEY);
     }
   }
   if (!Array.isArray(state.actionHistory)) {
@@ -425,10 +461,12 @@ function renderPlanningEditor(item, isDraft=false){
   })() : '';
   const bottomActions = isDraft ? `
       <div class="actions actions--bottom">
+        <button type="button" data-inline-action="cancel">Cancel</button>
         <button type="submit">Add</button>
       </div>` : `
       <div class="actions actions--bottom">
         <button type="button" class="delBtn planning-delete-btn" data-inline-action="delete-planning" title="Delete" aria-label="Delete item">🗑</button>
+        <button type="button" data-inline-action="cancel">Cancel</button>
         <button type="submit">Save</button>
       </div>`;
 
@@ -546,9 +584,11 @@ function renderLogRow(){
 
 function renderAutofillRow(){
   const open = isInlineRowOpen('planning', 'autofill');
-  const storedFreq = localStorage.getItem(AUTOFILL_FREQ_KEY) || 'biweekly';
-  const storedStartDate = localStorage.getItem(AUTOFILL_START_DATE_KEY) || '';
+  const { frequency: storedFreq, startDate: storedStartDate } = getAutofillPreferences();
   const body = open ? (() => {
+    if (!storedStartDate) {
+      return '<div class="autofill-hint">Set autofill settings in Settings to use Auto Fill.</div><div class="actions"><button type="button" data-inline-action="close">Close</button></div>';
+    }
     ensureAutofillSelection();
     const eligible = getAutoFillItems();
     if (eligible.length === 0) {
@@ -600,18 +640,6 @@ function renderAutofillRow(){
         <span>Available after</span>
         <span id="_af_remaining">$${(lastAvailableAmount - total).toFixed(2)}</span>
       </div>
-      <div class="autofill-freq-row">
-        <span class="autofill-freq-label">Pay Frequency</span>
-        <select id="_af_frequency">
-          <option value="weekly" ${storedFreq === 'weekly' ? 'selected' : ''}>Every Week</option>
-          <option value="biweekly" ${storedFreq === 'biweekly' ? 'selected' : ''}>Every Two Weeks</option>
-          <option value="monthly" ${storedFreq === 'monthly' ? 'selected' : ''}>Every Month</option>
-        </select>
-      </div>
-      <div class="autofill-freq-row">
-        <span class="autofill-freq-label">Start Date</span>
-        <input type="date" id="_af_start_date" value="${storedStartDate}">
-      </div>
       <div class="actions">
         <button type="button" data-inline-action="close">Cancel</button>
         <button id="_af_fill" type="submit">Fill Items</button>
@@ -634,6 +662,7 @@ function renderAutofillRow(){
 
 function renderSettingsRow(){
   const open = isInlineRowOpen('planning', 'settings');
+  const { frequency, startDate } = getAutofillPreferences();
   const body = open ? `
     <div class="inline-body-inline">
       <div class="gist-controls inline-gist-controls">
@@ -648,8 +677,27 @@ function renderSettingsRow(){
           <button type="button" data-settings-action="import">Import Data</button>
           <input type="file" id="import-file" accept=".json" style="display:none">
         </div>
-        <div id="status" class="status"></div>
-        <div class="actions"><button type="button" data-inline-action="close">Close</button></div>
+      </div>
+      <div class="settings-section settings-autofill-section">
+        <h4>Autofill Settings</h4>
+        <div class="settings-autofill-grid">
+          <label class="settings-autofill-field">Pay Frequency
+            <select id="settings-autofill-frequency">
+              <option value="weekly" ${frequency === 'weekly' ? 'selected' : ''}>Every Week</option>
+              <option value="biweekly" ${frequency === 'biweekly' ? 'selected' : ''}>Every Two Weeks</option>
+              <option value="monthly" ${frequency === 'monthly' ? 'selected' : ''}>Every Month</option>
+            </select>
+          </label>
+          <label class="settings-autofill-field">Start Date
+            <input id="settings-autofill-start-date" type="date" value="${escapeHtml(startDate)}">
+          </label>
+        </div>
+        <small>Auto Fill uses these settings to estimate how much to allocate each pay period.</small>
+      </div>
+      <div id="status" class="status"></div>
+      <div class="actions settings-actions">
+        <button type="button" data-inline-action="cancel">Cancel</button>
+        <button type="button" data-settings-action="save-autofill">Save</button>
       </div>
     </div>
   ` : '';
@@ -668,6 +716,16 @@ function renderSettingsRow(){
       ${body}
     </div>
   `;
+}
+
+function saveAutofillSettingsFromDom(){
+  const freqEl = $('settings-autofill-frequency');
+  const startDateEl = $('settings-autofill-start-date');
+  const frequency = freqEl ? freqEl.value : 'biweekly';
+  const startDate = startDateEl ? startDateEl.value : '';
+  saveAutofillPreferences(frequency, startDate);
+  closeInlineRow();
+  autosaveToGist();
 }
 
 function getItemMarkup(section, item){
@@ -739,54 +797,13 @@ function computeTotals(){
   const available = totalAccounts - totalPlanning;
   
   const availableEl = $('available');
-  const currentAvailableAmount = parseFloat(availableEl.textContent.replace(/[^0-9.-]+/g,"")) || 0;
-
-  if (available !== currentAvailableAmount) {
-    const direction = available > currentAvailableAmount ? 'up' : 'down';
-    animateNumberChange(
-      availableEl,
-      currentAvailableAmount,
-      available,
-      1000,
-      direction,
-      null,
-      null
-    );
-  } else {
+  if (availableEl) {
     availableEl.textContent = formatCurrencyWhole(available);
+    availableEl.style.color = '';
   }
   updateAvailableBannerValue(available);
   lastAvailableAmount = available; // Update lastAvailableAmount after setting new value
   return { accounts: totalAccounts, planning: totalPlanning, available };
-}
-
-function animateNumberChange(element, startValue, endValue, duration, direction, onFrame, onComplete) {
-  let startTime;
-  const easing = t => t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t; // Ease-in-out
-
-  if (direction === 'up') {
-    element.style.color = '#7bc48e'; // Green for up
-  } else if (direction === 'down') {
-    element.style.color = '#d47272'; // Red for down
-  }
-
-  function animate(currentTime) {
-    if (!startTime) startTime = currentTime;
-    const progress = Math.min((currentTime - startTime) / duration, 1);
-    const easedProgress = easing(progress);
-
-    const currentValue = startValue + (endValue - startValue) * easedProgress;
-    element.textContent = formatCurrencyWhole(currentValue);
-    if (onFrame) onFrame(currentValue, progress);
-
-    if (progress < 1) {
-      requestAnimationFrame(animate);
-    } else {
-      element.style.color = '';
-      if (onComplete) onComplete();
-    }
-  }
-  requestAnimationFrame(animate);
 }
 
 function formatActionText(action){
@@ -1034,16 +1051,6 @@ function handleInlineSubmit(form){
   const isDraft = form.dataset.draft === '1';
 
   if (form.dataset.inlineSubmit === 'autofill') {
-    const freqEl = form.querySelector('#_af_frequency');
-    const startDateEl = form.querySelector('#_af_start_date');
-    const freq = freqEl ? freqEl.value : 'biweekly';
-    const startDate = startDateEl ? startDateEl.value : '';
-    localStorage.setItem(AUTOFILL_FREQ_KEY, freq);
-    localStorage.setItem(AUTOFILL_START_DATE_KEY, startDate);
-    state.paySchedule = state.paySchedule || {};
-    state.paySchedule.frequency = freq;
-    state.paySchedule.startDate = startDate;
-
     const checked = Array.from(form.querySelectorAll('.autofill-cb:checked'));
     checked.forEach(cb => {
       const id = cb.dataset.id;
@@ -1277,19 +1284,6 @@ function setupUI(){
         return;
       }
 
-      if (e.target.id === '_af_frequency' || e.target.id === '_af_start_date') {
-        const freq = $('_af_frequency')?.value || localStorage.getItem(AUTOFILL_FREQ_KEY) || 'biweekly';
-        const startDate = $('_af_start_date')?.value || localStorage.getItem(AUTOFILL_START_DATE_KEY) || '';
-        localStorage.setItem(AUTOFILL_FREQ_KEY, freq);
-        localStorage.setItem(AUTOFILL_START_DATE_KEY, startDate);
-        state.paySchedule = state.paySchedule || {};
-        state.paySchedule.frequency = freq;
-        state.paySchedule.startDate = startDate;
-        saveLocal();
-        render();
-        return;
-      }
-
       const planningForm = e.target.closest('form[data-inline-submit="planning"]');
       if (planningForm && e.target.name === 'recurring') {
         syncPlanningInlineSchedule(planningForm);
@@ -1352,6 +1346,7 @@ function setupUI(){
     const action = settingsBtn.dataset.settingsAction;
     if (action === 'save') saveToGist(false);
     if (action === 'load') loadFromGist();
+    if (action === 'save-autofill') saveAutofillSettingsFromDom();
     if (action === 'export') {
       try {
         const data = JSON.stringify(state, null, 2);
