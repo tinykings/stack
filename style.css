@@ -3373,6 +3373,7 @@ body.detail-open .stack-meta {
 .modal .actions button#_spend_ok:hover {
   background: var(--amber);
   border-color: var(--border);
+  box-shadow: 6px 6px 0 #111111;
   color: var(--text);
 }
 

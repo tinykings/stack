@@ -1,4 +1,4 @@
-const CACHE_NAME = 'stack-v8.4';
+const CACHE_NAME = 'stack-v8.5';
 const ASSETS = [
   './',
   './index.html',
@@ -6,7 +6,8 @@ const ASSETS = [
   './app.js',
   './manifest.json',
   './images/icon-192.png',
-  './images/icon-512.png'
+  './images/icon-512.png',
+  './images/logo.webp'
 ];
 
 // Install: pre-cache app shell
