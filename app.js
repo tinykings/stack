@@ -16,6 +16,7 @@ let isSavingToGist = false; // Flag to prevent auto-refresh during save
 let modalLockCount = 0;
 let modalScrollY = 0;
 let inlineRowState = null;
+let pendingInlineRowFocus = null;
 let autofillSelection = new Set();
 let autofillSelectionInitialized = false;
 
@@ -61,6 +62,7 @@ function shouldUseBottomSheet(){
 
 function openInlineRow(section, key){
   inlineRowState = { section, key };
+  pendingInlineRowFocus = { section, key };
   if (section === 'planning' && key === 'autofill') {
     autofillSelectionInitialized = false;
     autofillSelection = new Set();
@@ -70,6 +72,7 @@ function openInlineRow(section, key){
 
 function closeInlineRow(){
   inlineRowState = null;
+  pendingInlineRowFocus = null;
   autofillSelectionInitialized = false;
   autofillSelection = new Set();
   render();
@@ -777,6 +780,18 @@ function renderFooterAction(){
   el.textContent = formatActionText(history[0]);
 }
 
+function centerOpenInlineRow(){
+  if (!pendingInlineRowFocus) return;
+  const { section, key } = pendingInlineRowFocus;
+  const row = document.querySelector(`.inline-row[data-inline-section="${section}"][data-inline-key="${key}"]`);
+  if (!row) return;
+
+  pendingInlineRowFocus = null;
+  requestAnimationFrame(() => {
+    row.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  });
+}
+
 function showHistoryModal(){
   openInlineRow('planning', 'log');
 }
@@ -785,6 +800,7 @@ function render(){
   const totals = computeTotals();
   renderAccountCards();
   renderPlanningList(totals);
+  centerOpenInlineRow();
 }
 
 function escapeHtml(text){ return (text+'').replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;","\"":"&quot;"})[c]); }
