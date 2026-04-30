@@ -553,12 +553,17 @@ function renderItemSummary(section, item){
 function renderAddRow(section){
   const open = isInlineRowOpen(section, '__new__');
   const title = section === 'accounts' ? 'Add Account' : 'Add Item';
+  const showHelper = section === 'accounts'
+    ? (state.accounts || []).length === 0
+    : (state.items.planning || []).length === 0 && (state.accounts || []).length > 0;
+  const helperText = section === 'accounts' ? 'Add an account to get started' : 'Add a budget item';
   return `
     <div class="item inline-row inline-row--new ${open ? 'is-open' : ''}" data-inline-section="${section}" data-inline-key="__new__">
       <button type="button" class="item-content item-clickable inline-row-toggle" data-inline-toggle="1" aria-expanded="${open ? 'true' : 'false'}">
         <div class="item-info">
           <div class="item-name">${title}</div>
         </div>
+        ${showHelper ? `<div class="item-meta-row"><span class="meta">${helperText}</span></div>` : ''}
       </button>
       ${open ? (section === 'accounts' ? renderAccountEditor({}, true) : renderPlanningEditor({}, true)) : ''}
     </div>
@@ -784,7 +789,18 @@ function renderSettingsAccounts(){
 function renderPlanningList(totals){
   const listEl = $('planning-list');
   if (!listEl) return;
+  const hasAccounts = (state.accounts || []).length > 0;
   const items = getSectionItems('planning');
+  if (!hasAccounts && items.length === 0) {
+    listEl.innerHTML = '';
+    return;
+  }
+
+  if (hasAccounts && items.length === 0) {
+    listEl.innerHTML = `${renderAddRow('planning')}${renderSettingsRow()}`;
+    return;
+  }
+
   const itemRows = items.length ? items.map(item => getItemMarkup('planning', item)).join('') : '<div class="planning-empty">No planning items yet.</div>';
   listEl.innerHTML = `${itemRows}${renderAddRow('planning')}${renderLogRow()}${renderAutofillRow()}${renderSettingsRow()}`;
 }
@@ -810,7 +826,7 @@ function computeTotals(){
   const availableEl = $('available');
   if (availableEl) {
     availableEl.textContent = formatCurrencyWhole(available);
-    availableEl.style.color = '';
+    availableEl.style.color = available < 0 ? 'var(--pink)' : '';
   }
   updateAvailableBannerValue(available);
   lastAvailableAmount = available; // Update lastAvailableAmount after setting new value
@@ -853,7 +869,9 @@ function isPageScrolledFromTop(){
 
 function updateAvailableBannerValue(value){
   const bannerValue = $('available-banner-value');
-  if (bannerValue) bannerValue.textContent = formatCurrencyWhole(value);
+  if (!bannerValue) return;
+  bannerValue.textContent = formatCurrencyWhole(value);
+  bannerValue.style.color = value < 0 ? 'var(--pink)' : '';
 }
 
 function triggerAvailableFlip(){

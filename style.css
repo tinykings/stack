@@ -460,6 +460,14 @@ body {
   text-align: center;
 }
 
+.inline-row[data-inline-key="__new__"] .inline-row-toggle .item-meta-row {
+  justify-content: center;
+}
+
+.inline-row[data-inline-key="__new__"] .inline-row-toggle .meta {
+  text-align: center;
+}
+
 .inline-row.is-open {
   border-color: rgba(69, 209, 111, 0.28);
 }
