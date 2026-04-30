@@ -36,48 +36,6 @@
       <div id="planning-list" class="planning-list"></div>
     </section>
 
-    <div class="footer-bar">
-      <div id="footer-last-action" class="footer-last-action footer-log" style="display:none;"></div>
-      <div class="footer-right">
-        <button id="sync-btn" class="detail-add-btn" title="Settings" aria-label="Settings">⚙</button>
-        <button id="autofill-btn" class="detail-add-btn" title="Auto Fill" aria-label="Auto Fill">↯</button>
-        <button id="add-planning-btn" class="detail-add-btn" type="button" aria-label="Add item">＋</button>
-      </div>
-    </div>
-
-    <div id="gist-modal" class="modal-overlay center-overlay" style="display:none;">
-      <div class="modal">
-        <h3>Settings</h3>
-        <div class="gist-controls">
-          <input id="gistId" placeholder="Gist ID">
-          <input id="gistToken" placeholder="GitHub token (Gist scope)" type="password">
-          <div class="gist-buttons">
-            <button id="saveGist">Save to Gist</button>
-            <button id="loadGist">Load from Gist</button>
-          </div>
-          <div id="status" class="status"></div>
-        </div>
-        <div class="settings-section">
-          <h4>Manage Accounts</h4>
-          <div class="settings-actions-row">
-            <button id="add-account-settings-btn" class="backup-btn">Add Account</button>
-          </div>
-          <div id="settings-accounts-list" class="settings-account-list"></div>
-        </div>
-        <div class="backup-section">
-            <h4>Backup & Restore</h4>
-            <div class="backup-buttons">
-                <button id="export-btn" class="backup-btn">Export Data</button>
-                <button id="import-btn" class="backup-btn">Import Data</button>
-                <input type="file" id="import-file" accept=".json" style="display:none">
-            </div>
-            <small>Export saves a backup file. Import restores from a backup file.</small>
-        </div>
-        <div class="actions">
-            <button id="gist-modal-close">Close</button>
-        </div>
-      </div>
-    </div>
   </main>
 
   <script src="app.js"></script>

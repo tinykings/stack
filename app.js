@@ -15,6 +15,9 @@ let lastAvailableAmount = 0; // New global variable
 let isSavingToGist = false; // Flag to prevent auto-refresh during save
 let modalLockCount = 0;
 let modalScrollY = 0;
+let inlineRowState = null;
+let autofillSelection = new Set();
+let autofillSelectionInitialized = false;
 
 // Each item now has: id, name, amount, due, spent (array of {name, amount, date})
 
@@ -45,8 +48,60 @@ function clearOnFirstFocus(input){
   });
 }
 
+function clearAmountOnFocus(target){
+  if (!target || target.tagName !== 'INPUT') return;
+  if (!target.matches('input[data-clear-on-focus]')) return;
+  if (target.value === '') return;
+  target.value = '';
+}
+
 function shouldUseBottomSheet(){
   return window.matchMedia('(max-width: 599px)').matches;
+}
+
+function openInlineRow(section, key){
+  inlineRowState = { section, key };
+  if (section === 'planning' && key === 'autofill') {
+    autofillSelectionInitialized = false;
+    autofillSelection = new Set();
+  }
+  render();
+}
+
+function closeInlineRow(){
+  inlineRowState = null;
+  autofillSelectionInitialized = false;
+  autofillSelection = new Set();
+  render();
+}
+
+function isInlineRowOpen(section, key){
+  return !!inlineRowState && inlineRowState.section === section && inlineRowState.key === key;
+}
+
+function ensureAutofillSelection(){
+  if (autofillSelectionInitialized) return;
+
+  const storedFreq = localStorage.getItem(AUTOFILL_FREQ_KEY) || 'biweekly';
+  const storedStartDate = localStorage.getItem(AUTOFILL_START_DATE_KEY) || '';
+  const eligible = getAutoFillItems();
+  const withPerCheck = eligible.map(e => {
+    const checks = e.dueDate ? checksUntilDate(e.dueDate, storedFreq, storedStartDate) : 1;
+    return { ...e, perCheckGap: e.gap / checks };
+  });
+
+  let available = lastAvailableAmount;
+  const selected = new Set();
+  [...withPerCheck].sort((a, b) => (a.dueDate?.getTime() || 0) - (b.dueDate?.getTime() || 0)).forEach(e => {
+    const canAfford = available >= e.perCheckGap - 0.005;
+    if (canAfford) {
+      selected.add(e.item.id);
+      available -= e.perCheckGap;
+    }
+  });
+
+  autofillSelection = selected;
+  autofillSelectionInitialized = true;
 }
 
 function createModalShell(){
@@ -232,8 +287,10 @@ function loadLocal(){
   }
   const gid = localStorage.getItem(GIST_ID_KEY);
   const tok = localStorage.getItem(GIST_TOKEN_KEY);
-  if(gid) $('gistId').value = gid;
-  if(tok) $('gistToken').value = tok;
+  const gidEl = $('gistId');
+  const tokEl = $('gistToken');
+  if(gid && gidEl) gidEl.value = gid;
+  if(tok && tokEl) tokEl.value = tok;
   // Initialize lastAvailableAmount after loading local data
   const availableEl = $('available');
   if (availableEl && availableEl.textContent) {
@@ -312,19 +369,79 @@ function getDueDisplay(item){
   return '-';
 }
 
-function getItemMarkup(section, item){
-  if(section === 'accounts'){
+function renderAccountEditor(item, isDraft=false){
+  return `
+    <form class="inline-editor inline-editor--account" data-inline-submit="account" data-section="accounts" data-item-id="${item?.id || ''}" data-draft="${isDraft ? '1' : '0'}">
+      <label>Name<br><input name="name" type="text" placeholder="Name" value="${escapeHtml(item?.name || '')}"></label>
+      <label>Amount<br><input name="amount" type="number" data-clear-on-focus="1" step="0.01" inputmode="decimal" placeholder="0.00" value="${isDraft ? '' : Number(item?.amount || 0).toFixed(2)}"></label>
+      <label class="toggle-label"><input name="isPositive" type="checkbox" ${isDraft || item?.isPositive ? 'checked' : ''}> Asset (unchecked=debt)</label>
+      <div class="actions">
+        ${isDraft ? '' : '<button type="button" class="delBtn" data-inline-action="delete-account">Delete</button>'}
+        <button type="button" data-inline-action="cancel">Cancel</button>
+        <button type="submit">${isDraft ? 'Add' : 'Save'}</button>
+      </div>
+    </form>
+  `;
+}
+
+function renderPlanningEditor(item, isDraft=false){
+  const currentAmountValue = isDraft ? '' : (() => {
+    const totalSpent = (item.spent || []).reduce((a, b) => a + Number(b.amount || 0), 0);
+    return (Number(item.amount) - totalSpent).toFixed(2);
+  })();
+  const recurring = isDraft || !item ? true : !!item.schedule?.recurring;
+  const dayValue = isDraft || !item ? 1 : (item.schedule?.recurring ? (item.schedule.dayOfMonth || 1) : 1);
+  const dateValue = isDraft || !item || item.schedule?.recurring ? '' : (item.schedule?.date || '');
+  const neededValue = isDraft ? '' : Number(item?.neededAmount !== undefined ? item.neededAmount : item?.amount || 0).toFixed(2);
+  const history = !isDraft && item?.spent && item.spent.length > 0 ? (() => {
+    let html = '<h4>Spend History</h4><ul class="spend-history-list">';
+    for (let index = item.spent.length - 1; index >= 0; index--) {
+      const spend = item.spent[index];
+      html += `
+        <li class="spend-history-item">
+          <span class="spend-info">${escapeHtml(spend.name)} - $${Number(spend.amount).toFixed(2)} on ${new Date(spend.date).toLocaleDateString()}</span>
+          <button type="button" class="delete-spend-btn" data-index="${index}" title="Delete">✕</button>
+        </li>`;
+    }
+    html += '</ul>';
+    return html;
+  })() : '';
+
+  return `
+    <form class="inline-editor inline-editor--planning" data-inline-submit="planning" data-section="planning" data-item-id="${item?.id || ''}" data-draft="${isDraft ? '1' : '0'}">
+      <label>Name<br><input name="name" type="text" placeholder="Name" value="${escapeHtml(item?.name || '')}"></label>
+      <label>Current Amount<br><input name="amount" type="number" data-clear-on-focus="1" step="0.01" inputmode="decimal" placeholder="0.00" value="${currentAmountValue}"></label>
+      <label>Needed Amount<br><input name="neededAmount" type="number" data-clear-on-focus="1" step="0.01" inputmode="decimal" placeholder="0.00" value="${neededValue}"></label>
+      <label class="toggle-label"><input name="recurring" type="checkbox" ${recurring ? 'checked' : ''}>Recurring monthly</label>
+      <label class="inline-toggle-target" data-toggle-wrap="day" style="${recurring ? '' : 'display:none;'}">Day of month<br><input name="day" type="number" min="1" max="31" inputmode="numeric" placeholder="1-31" value="${dayValue}"></label>
+      <label class="inline-toggle-target" data-toggle-wrap="date" style="${recurring ? 'display:none;' : ''}">Target date<br><input name="date" type="date" value="${dateValue}"></label>
+      ${history}
+      <div class="actions">
+        ${isDraft ? '' : '<button type="button" class="spendBtn" data-inline-action="spend">Spend</button>'}
+        ${isDraft ? '' : '<button type="button" class="delBtn" data-inline-action="delete-planning">Delete</button>'}
+        <button type="button" data-inline-action="cancel">Cancel</button>
+        <button type="submit">${isDraft ? 'Add' : 'Save'}</button>
+      </div>
+    </form>
+  `;
+}
+
+function renderItemSummary(section, item){
+  const open = isInlineRowOpen(section, item.id);
+
+  if (section === 'accounts') {
     const amountClass = item.isPositive ? 'asset' : 'liability';
     const accountType = item.isPositive ? 'Asset' : 'Debt';
     return `
-      <div class="item">
-        <div class="item-content item-clickable" data-id="${item.id}" data-section="accounts">
+      <div class="item inline-row ${open ? 'is-open' : ''}" data-inline-section="accounts" data-inline-key="${item.id}">
+        <button type="button" class="item-content item-clickable inline-row-toggle" data-inline-toggle="1" aria-expanded="${open ? 'true' : 'false'}">
           <div class="item-info">
             <div class="item-name">${escapeHtml(item.name)}</div>
             <div class="item-amount ${amountClass}">${formatCurrency(item.amount)}</div>
           </div>
           <div class="item-meta-row"><span class="meta">${accountType}</span></div>
-        </div>
+        </button>
+        ${open ? renderAccountEditor(item) : ''}
       </div>
     `;
   }
@@ -343,17 +460,189 @@ function getItemMarkup(section, item){
   if (mostRecent) metaBits.push(`${mostRecent.name} (-${Number(mostRecent.amount).toFixed(2)})`);
 
   return `
-    <div class="item">
-      <div class="item-content item-clickable" data-id="${item.id}" data-section="${section}">
+    <div class="item inline-row ${open ? 'is-open' : ''}" data-inline-section="planning" data-inline-key="${item.id}">
+      <button type="button" class="item-content item-clickable inline-row-toggle" data-inline-toggle="1" aria-expanded="${open ? 'true' : 'false'}">
         <div class="item-info">
           <div class="item-name">${escapeHtml(item.name)}</div>
           <div class="item-amount ${amountClass}">${formatCurrency(Math.abs(remaining))}</div>
         </div>
         <div class="item-meta-row"><span class="meta">${escapeHtml(metaBits.join(' • '))}</span></div>
         ${Number(neededAmount) > 0 ? `<div class="item-progress"><div class="item-progress-bar ${progressClass}" style="width: ${remainingPercent}%"></div></div>` : ''}
-      </div>
+      </button>
+      ${open ? renderPlanningEditor(item) : ''}
     </div>
   `;
+}
+
+function renderAddRow(section){
+  const open = isInlineRowOpen(section, '__new__');
+  const title = section === 'accounts' ? 'Add Account' : 'Add Item';
+  return `
+    <div class="item inline-row inline-row--new ${open ? 'is-open' : ''}" data-inline-section="${section}" data-inline-key="__new__">
+      <button type="button" class="item-content item-clickable inline-row-toggle" data-inline-toggle="1" aria-expanded="${open ? 'true' : 'false'}">
+        <div class="item-info">
+          <div class="item-name">${title}</div>
+        </div>
+      </button>
+      ${open ? (section === 'accounts' ? renderAccountEditor({}, true) : renderPlanningEditor({}, true)) : ''}
+    </div>
+  `;
+}
+
+function renderLogRow(){
+  const open = isInlineRowOpen('planning', 'log');
+  const history = state.actionHistory || [];
+  const latest = history.length ? formatActionText(history[0]) : 'No changes yet';
+  let body = '';
+  if (open) {
+    const listHtml = history.length ? `<ul class="history-list">${history.map(action => `<li>${escapeHtml(formatActionText(action))}</li>`).join('')}</ul>` : '<div class="planning-empty">No changes yet.</div>';
+    body = `
+      <div class="inline-body-inline">
+        ${listHtml}
+        <div class="actions"><button type="button" data-inline-action="close">Close</button></div>
+      </div>
+    `;
+  }
+  return `
+    <div class="item inline-row ${open ? 'is-open' : ''}" data-inline-section="planning" data-inline-key="log">
+      <button type="button" class="item-content item-clickable inline-row-toggle" data-inline-toggle="1" aria-expanded="${open ? 'true' : 'false'}">
+        <div class="item-info">
+          <div class="item-name">Log</div>
+        </div>
+      </button>
+      ${body}
+    </div>
+  `;
+}
+
+function renderAutofillRow(){
+  const open = isInlineRowOpen('planning', 'autofill');
+  const storedFreq = localStorage.getItem(AUTOFILL_FREQ_KEY) || 'biweekly';
+  const storedStartDate = localStorage.getItem(AUTOFILL_START_DATE_KEY) || '';
+  const body = open ? (() => {
+    ensureAutofillSelection();
+    const eligible = getAutoFillItems();
+    if (eligible.length === 0) {
+      return '<div class="planning-empty">All items are fully funded.</div>';
+    }
+
+    const withPerCheck = eligible.map(e => {
+      const checks = e.dueDate ? checksUntilDate(e.dueDate, storedFreq, storedStartDate) : 1;
+      const perCheckGap = e.gap / checks;
+      return { ...e, perCheckGap };
+    });
+
+    let available = lastAvailableAmount;
+    const affordMap = new Map();
+    [...withPerCheck].sort((a, b) => (a.dueDate?.getTime() || 0) - (b.dueDate?.getTime() || 0)).forEach(e => {
+      const canAfford = available >= e.perCheckGap - 0.005;
+      if (canAfford) available -= e.perCheckGap;
+      affordMap.set(e.item.id, canAfford);
+    });
+
+    let html = '<form class="autofill-inline-form" data-inline-submit="autofill">';
+    html += '<div class="autofill-header">Items to Fund</div><div class="autofill-list">';
+    withPerCheck.sort((a, b) => (a.dueDate?.getTime() || 0) - (b.dueDate?.getTime() || 0)).forEach(({ item, perCheckGap, dueDate }) => {
+      const checks = dueDate ? checksUntilDate(dueDate, storedFreq, storedStartDate) : 1;
+      const dueFmt = dueDate ? dueDate.toLocaleDateString([], { month: 'short', day: 'numeric' }) : '-';
+      const meta = `${dueFmt} · ${checks} check${checks !== 1 ? 's' : ''}`;
+      const affordable = affordMap.get(item.id) !== false;
+      const checked = autofillSelection.has(item.id);
+      html += `
+        <label class="autofill-item">
+          <input type="checkbox" class="autofill-cb" data-id="${item.id}" data-gap="${perCheckGap.toFixed(2)}" ${checked ? 'checked' : ''} ${affordable ? '' : 'disabled'}>
+          <span class="autofill-rec-name">${escapeHtml(item.name)}</span>
+          <span class="autofill-rec-meta">${escapeHtml(meta)}</span>
+          <span class="${affordable ? 'autofill-item-amount' : 'autofill-item-amount autofill-item-amount--unaffordable'}">+$${perCheckGap.toFixed(2)}</span>
+        </label>`;
+    });
+    html += '</div>';
+
+    let total = 0;
+    withPerCheck.forEach(({ item, perCheckGap }) => {
+      if (autofillSelection.has(item.id)) total += perCheckGap;
+    });
+    html += `
+      <div class="autofill-total">
+        <span>Total to allocate</span>
+        <span class="autofill-total-amount">$${total.toFixed(2)}</span>
+      </div>
+      <div class="autofill-remaining">
+        <span>Available after</span>
+        <span id="_af_remaining">$${(lastAvailableAmount - total).toFixed(2)}</span>
+      </div>
+      <div class="autofill-freq-row">
+        <span class="autofill-freq-label">Pay Frequency</span>
+        <select id="_af_frequency">
+          <option value="weekly" ${storedFreq === 'weekly' ? 'selected' : ''}>Every Week</option>
+          <option value="biweekly" ${storedFreq === 'biweekly' ? 'selected' : ''}>Every Two Weeks</option>
+          <option value="monthly" ${storedFreq === 'monthly' ? 'selected' : ''}>Every Month</option>
+        </select>
+      </div>
+      <div class="autofill-freq-row">
+        <span class="autofill-freq-label">Start Date</span>
+        <input type="date" id="_af_start_date" value="${storedStartDate}">
+      </div>
+      <div class="actions">
+        <button type="button" data-inline-action="close">Cancel</button>
+        <button id="_af_fill" type="submit">Fill Items</button>
+      </div>
+    </form>`;
+    return html;
+  })() : '';
+
+  return `
+    <div class="item inline-row ${open ? 'is-open' : ''}" data-inline-section="planning" data-inline-key="autofill">
+      <button type="button" class="item-content item-clickable inline-row-toggle" data-inline-toggle="1" aria-expanded="${open ? 'true' : 'false'}">
+        <div class="item-info">
+          <div class="item-name">Auto Fill</div>
+        </div>
+      </button>
+      ${body}
+    </div>
+  `;
+}
+
+function renderSettingsRow(){
+  const open = isInlineRowOpen('planning', 'settings');
+  const body = open ? `
+    <div class="inline-body-inline">
+      <div class="gist-controls inline-gist-controls">
+        <input id="gistId" placeholder="Gist ID" value="${escapeHtml(localStorage.getItem(GIST_ID_KEY) || '')}">
+        <input id="gistToken" placeholder="GitHub token (Gist scope)" type="password" value="${escapeHtml(localStorage.getItem(GIST_TOKEN_KEY) || '')}">
+        <div class="gist-buttons">
+          <button type="button" data-settings-action="save">Save to Gist</button>
+          <button type="button" data-settings-action="load">Load from Gist</button>
+        </div>
+        <div class="gist-buttons">
+          <button type="button" data-settings-action="export">Export Data</button>
+          <button type="button" data-settings-action="import">Import Data</button>
+          <input type="file" id="import-file" accept=".json" style="display:none">
+        </div>
+        <div id="status" class="status"></div>
+        <div class="actions"><button type="button" data-inline-action="close">Close</button></div>
+      </div>
+    </div>
+  ` : '';
+
+  const summary = `
+    <button type="button" class="item-content item-clickable inline-row-toggle" data-inline-toggle="1" aria-expanded="${open ? 'true' : 'false'}">
+      <div class="item-info">
+        <div class="item-name">Settings</div>
+      </div>
+    </button>
+  `;
+
+  return `
+    <div class="item inline-row ${open ? 'is-open' : ''}" data-inline-section="planning" data-inline-key="settings">
+      ${summary}
+      ${body}
+    </div>
+  `;
+}
+
+function getItemMarkup(section, item){
+  return renderItemSummary(section, item);
 }
 
 function getSectionTotal(section){
@@ -372,17 +661,7 @@ function renderAccountCards(){
 
   const accounts = getSectionItems('accounts');
 
-  accountsEl.innerHTML = accounts.map(account => {
-    const amountClass = account.isPositive ? 'asset' : 'liability';
-    return `
-      <button class="summary-chip summary-chip--accounts account-card" type="button" data-account-id="${account.id}">
-        <div class="summary-chip-main">
-          <span class="summary-chip-label">${escapeHtml(account.name)}</span>
-          <span class="summary-chip-value ${amountClass}">${formatCurrency(account.amount)}</span>
-        </div>
-      </button>
-    `;
-  }).join('');
+  accountsEl.innerHTML = `${accounts.map(account => renderItemSummary('accounts', account)).join('')}${renderAddRow('accounts')}`;
 }
 
 function renderSettingsAccounts(){
@@ -410,7 +689,8 @@ function renderPlanningList(totals){
   const listEl = $('planning-list');
   if (!listEl) return;
   const items = getSectionItems('planning');
-  listEl.innerHTML = items.length ? items.map(item => getItemMarkup('planning', item)).join('') : '<div class="planning-empty">No planning items yet.</div>';
+  const itemRows = items.length ? items.map(item => getItemMarkup('planning', item)).join('') : '<div class="planning-empty">No planning items yet.</div>';
+  listEl.innerHTML = `${itemRows}${renderAddRow('planning')}${renderLogRow()}${renderAutofillRow()}${renderSettingsRow()}`;
 }
 
 function computeTotals(){
@@ -498,38 +778,13 @@ function renderFooterAction(){
 }
 
 function showHistoryModal(){
-  const history = state.actionHistory || [];
-  if (history.length === 0) return;
-
-  lockBodyScroll();
-  const overlay = document.createElement('div'); overlay.className = 'modal-overlay';
-  const modal = document.createElement('div'); modal.className = 'modal';
-
-  let listHtml = '<ul class="history-list">';
-  history.forEach(action => {
-    listHtml += `<li>${escapeHtml(formatActionText(action))}</li>`;
-  });
-  listHtml += '</ul>';
-
-  modal.innerHTML = `
-    <h3>Recent Changes</h3>
-    ${listHtml}
-    <div class="actions"><button id="_history_close">Close</button></div>
-  `;
-  overlay.appendChild(modal);
-  document.body.appendChild(overlay);
-
-  const cleanup = () => { unlockBodyScroll(); overlay.remove(); };
-  document.getElementById('_history_close').addEventListener('click', cleanup);
-  overlay.addEventListener('click', (e) => { if (e.target === overlay) cleanup(); });
+  openInlineRow('planning', 'log');
 }
 
 function render(){ 
   const totals = computeTotals();
   renderAccountCards();
   renderPlanningList(totals);
-  renderFooterAction(); 
-  renderSettingsAccounts();
 }
 
 function escapeHtml(text){ return (text+'').replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;","\"":"&quot;"})[c]); }
@@ -638,108 +893,333 @@ function deleteSpendEntry(section, itemId, index){
   autosaveToGist();
 }
 
+function updateAutofillTotalsFromDom(form){
+  if (!form) return;
+  const checked = Array.from(form.querySelectorAll('.autofill-cb:checked'));
+  autofillSelection = new Set(checked.map(cb => cb.dataset.id));
+  let total = 0;
+  checked.forEach(cb => {
+    total += parseFloat(cb.dataset.gap) || 0;
+  });
+
+  const totalEl = form.querySelector('.autofill-total-amount');
+  if (totalEl) totalEl.textContent = `$${total.toFixed(2)}`;
+  const remEl = form.querySelector('#_af_remaining');
+  if (remEl) remEl.textContent = `$${(lastAvailableAmount - total).toFixed(2)}`;
+  const fillBtn = form.querySelector('#_af_fill');
+  if (fillBtn) fillBtn.disabled = checked.length === 0;
+}
+
+function syncPlanningInlineSchedule(form){
+  const recurring = form.querySelector('[name="recurring"]');
+  const dayWrap = form.querySelector('[data-toggle-wrap="day"]');
+  const dateWrap = form.querySelector('[data-toggle-wrap="date"]');
+  if (!recurring || !dayWrap || !dateWrap) return;
+  const isRecurring = recurring.checked;
+  dayWrap.style.display = isRecurring ? '' : 'none';
+  dateWrap.style.display = isRecurring ? 'none' : '';
+}
+
+function handleInlineSubmit(form){
+  const section = form.dataset.section;
+  const itemId = form.dataset.itemId || '';
+  const isDraft = form.dataset.draft === '1';
+
+  if (form.dataset.inlineSubmit === 'autofill') {
+    const freqEl = form.querySelector('#_af_frequency');
+    const startDateEl = form.querySelector('#_af_start_date');
+    const freq = freqEl ? freqEl.value : 'biweekly';
+    const startDate = startDateEl ? startDateEl.value : '';
+    localStorage.setItem(AUTOFILL_FREQ_KEY, freq);
+    localStorage.setItem(AUTOFILL_START_DATE_KEY, startDate);
+    state.paySchedule = state.paySchedule || {};
+    state.paySchedule.frequency = freq;
+    state.paySchedule.startDate = startDate;
+
+    const checked = Array.from(form.querySelectorAll('.autofill-cb:checked'));
+    checked.forEach(cb => {
+      const id = cb.dataset.id;
+      const gap = parseFloat(cb.dataset.gap) || 0;
+      if (gap <= 0) return;
+      const item = (state.items.planning || []).find(i => i.id === id);
+      if (item) {
+        item.amount = (Number(item.amount) || 0) + gap;
+        recordAction({ type: 'autofill', name: item.name, amount: gap.toFixed(2), date: new Date().toISOString() });
+      }
+    });
+
+    saveLocal();
+    closeInlineRow();
+    autosaveToGist();
+    return;
+  }
+
+  const name = form.querySelector('[name="name"]').value.trim();
+  if (!name) {
+    alert('Enter a name');
+    return;
+  }
+
+  const amountValue = form.querySelector('[name="amount"]').value.trim();
+  const parsedAmount = amountValue === '' ? 0 : parseFloat(amountValue);
+  const newAmount = Number.isNaN(parsedAmount) ? 0 : parsedAmount;
+
+  if (section === 'accounts') {
+    const isPositive = form.querySelector('[name="isPositive"]').checked;
+    if (isDraft) {
+      closeInlineRow();
+      addItem({ name, amount: newAmount, due: isPositive, section: 'accounts' });
+      return;
+    }
+
+    const item = state.accounts.find(a => a.id === itemId);
+    if (!item) return;
+    const oldAmount = Number(item.amount) || 0;
+    item.name = name;
+    item.amount = newAmount;
+    item.isPositive = isPositive;
+    recordAction({ type: Math.abs(newAmount - oldAmount) > 0.001 ? 'edit amount' : 'edit', name: item.name, section: 'accounts', date: new Date().toISOString() });
+    saveLocal();
+    closeInlineRow();
+    autosaveToGist();
+    return;
+  }
+
+  const neededAmountValue = form.querySelector('[name="neededAmount"]').value.trim();
+  const parsedNeededAmount = neededAmountValue === '' ? newAmount : parseFloat(neededAmountValue);
+  const neededAmount = Number.isNaN(parsedNeededAmount) ? newAmount : parsedNeededAmount;
+  const recurring = form.querySelector('[name="recurring"]').checked;
+  let schedule;
+  if (recurring) {
+    const day = parseInt(form.querySelector('[name="day"]').value, 10);
+    if (isNaN(day) || day < 1 || day > 31) {
+      alert('Enter valid day 1-31');
+      return;
+    }
+    schedule = { recurring: true, date: null, dayOfMonth: day };
+  } else {
+    const date = form.querySelector('[name="date"]').value;
+    if (!date) {
+      alert('Enter a target date');
+      return;
+    }
+    schedule = { recurring: false, date, dayOfMonth: null };
+  }
+
+  if (isDraft) {
+    closeInlineRow();
+    addItem({ name, amount: newAmount, neededAmount, schedule, due: undefined, section, enableSpending: true });
+    return;
+  }
+
+  const item = state.items.planning.find(i => i.id === itemId);
+  if (!item) return;
+  const oldRemaining = Number(item.amount) - (item.spent || []).reduce((a, b) => a + Number(b.amount || 0), 0);
+  const amountChanged = Math.abs(newAmount - oldRemaining) > 0.001;
+  item.name = name;
+  item.schedule = schedule;
+  item.neededAmount = neededAmount;
+  if (amountChanged) {
+    item.amount = newAmount;
+    item.spent = [];
+    recordAction({ type: 'edit amount', name: item.name, section, date: new Date().toISOString() });
+  } else {
+    recordAction({ type: 'edit', name: item.name, section, date: new Date().toISOString() });
+  }
+  saveLocal();
+  closeInlineRow();
+  autosaveToGist();
+}
+
+function handleInlineClick(e){
+  const row = e.target.closest('.inline-row');
+  if (!row) return;
+
+  const toggle = e.target.closest('.inline-row-toggle');
+  if (toggle) {
+    const section = row.dataset.inlineSection;
+    const key = row.dataset.inlineKey;
+    if (isInlineRowOpen(section, key)) {
+      closeInlineRow();
+    } else {
+      openInlineRow(section, key);
+    }
+    return;
+  }
+
+  const actionBtn = e.target.closest('[data-inline-action]');
+  if (!actionBtn) return;
+
+  const action = actionBtn.dataset.inlineAction;
+  const section = row.dataset.inlineSection;
+  const key = row.dataset.inlineKey;
+  const itemId = key === '__new__' ? null : key;
+
+  if (action === 'cancel' || action === 'close') {
+    closeInlineRow();
+    return;
+  }
+
+  if (action === 'spend' && section === 'planning' && itemId) {
+    showSpendingForm(section, itemId);
+    return;
+  }
+
+  if (action === 'delete-account' && section === 'accounts' && itemId) {
+    const account = (state.accounts || []).find(a => a.id === itemId);
+    if (!account) return;
+    if (confirm(`Remove account "${account.name}"?`)) {
+      closeInlineRow();
+      removeItem('accounts', itemId);
+    }
+    return;
+  }
+
+  if (action === 'delete-planning' && section === 'planning' && itemId) {
+    const item = (state.items.planning || []).find(i => i.id === itemId);
+    if (!item) return;
+    if (confirm('Remove item?')) {
+      closeInlineRow();
+      removeItem('planning', itemId);
+    }
+    return;
+  }
+
+  if (action === 'save') {
+    const form = row.querySelector('form[data-inline-submit]');
+    if (form) form.requestSubmit();
+    return;
+  }
+
+  if (action === 'import') {
+    const input = row.querySelector('#import-file');
+    if (input) input.click();
+    return;
+  }
+
+  if (action === 'export') {
+    try {
+      const data = JSON.stringify(state, null, 2);
+      const blob = new Blob([data], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const date = new Date().toISOString().slice(0, 10);
+      a.download = `stack-backup-${date}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      alert('Export failed: ' + err.message);
+    }
+    return;
+  }
+
+  if (action === 'save-gist') {
+    saveToGist(false);
+    return;
+  }
+
+  if (action === 'load-gist') {
+    loadFromGist();
+    return;
+  }
+}
+
 // UI wiring
 function setupUI(){
   loadLocal(); render();
 
-  const footerAction = $('footer-last-action');
-  if (footerAction) {
-    footerAction.addEventListener('click', showHistoryModal);
-  }
+  document.addEventListener('focusin', (e) => clearAmountOnFocus(e.target));
 
   const planningList = $('planning-list');
   if (planningList) {
-    planningList.addEventListener('click', e => {
-      const itemClickable = e.target.closest('.item-clickable');
-      if(itemClickable){
-        showItemForm('planning', itemClickable.dataset.id);
+    planningList.addEventListener('click', handleInlineClick);
+    planningList.addEventListener('submit', (e) => {
+      const form = e.target.closest('form[data-inline-submit]');
+      if (!form) return;
+      e.preventDefault();
+      handleInlineSubmit(form);
+    });
+    planningList.addEventListener('change', (e) => {
+      const autofillForm = e.target.closest('form[data-inline-submit="autofill"]');
+      if (autofillForm && e.target.classList.contains('autofill-cb')) {
+        updateAutofillTotalsFromDom(autofillForm);
+        return;
+      }
+
+      if (e.target.id === '_af_frequency' || e.target.id === '_af_start_date') {
+        const freq = $('_af_frequency')?.value || localStorage.getItem(AUTOFILL_FREQ_KEY) || 'biweekly';
+        const startDate = $('_af_start_date')?.value || localStorage.getItem(AUTOFILL_START_DATE_KEY) || '';
+        localStorage.setItem(AUTOFILL_FREQ_KEY, freq);
+        localStorage.setItem(AUTOFILL_START_DATE_KEY, startDate);
+        state.paySchedule = state.paySchedule || {};
+        state.paySchedule.frequency = freq;
+        state.paySchedule.startDate = startDate;
+        saveLocal();
+        render();
+        return;
+      }
+
+      const planningForm = e.target.closest('form[data-inline-submit="planning"]');
+      if (planningForm && e.target.name === 'recurring') {
+        syncPlanningInlineSchedule(planningForm);
+      }
+
+      if (e.target.id === 'import-file') {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          try {
+            const importedData = JSON.parse(event.target.result);
+            if (typeof importedData !== 'object') {
+              throw new Error('Invalid backup file format');
+            }
+
+            if (confirm('This will replace all your current data with the imported backup. Are you sure?')) {
+              state = normalizeState(importedData);
+              saveLocal();
+              render();
+              alert('Data imported successfully!');
+            }
+          } catch (err) {
+            alert('Import failed: ' + err.message);
+          }
+
+          e.target.value = '';
+        };
+
+        reader.onerror = () => {
+          alert('Failed to read file');
+          e.target.value = '';
+        };
+
+        reader.readAsText(file);
       }
     });
   }
 
   const accountsEl = $('account-cards');
   if (accountsEl) {
-    accountsEl.addEventListener('click', e => {
-      const card = e.target.closest('[data-account-id]');
-      if (!card) return;
-      showItemForm('accounts', card.dataset.accountId);
+    accountsEl.addEventListener('click', handleInlineClick);
+    accountsEl.addEventListener('submit', (e) => {
+      const form = e.target.closest('form[data-inline-submit]');
+      if (!form) return;
+      e.preventDefault();
+      handleInlineSubmit(form);
     });
   }
 
-  const addPlanningBtn = $('add-planning-btn');
-  if (addPlanningBtn) {
-    addPlanningBtn.addEventListener('click', () => showItemForm('planning'));
-  }
-
-  const addAccountSettingsBtn = $('add-account-settings-btn');
-  if (addAccountSettingsBtn) {
-    addAccountSettingsBtn.addEventListener('click', () => showItemForm('accounts'));
-  }
-
-  const settingsAccountsList = $('settings-accounts-list');
-  if (settingsAccountsList) {
-    settingsAccountsList.addEventListener('click', async e => {
-      const openBtn = e.target.closest('.settings-account-open');
-      if (openBtn) {
-        showItemForm('accounts', openBtn.dataset.accountId);
-        return;
-      }
-
-      const removeBtn = e.target.closest('.settings-account-remove');
-      if (removeBtn) {
-        const accountId = removeBtn.dataset.accountRemove;
-        const account = (state.accounts || []).find(a => a.id === accountId);
-        if (!account) return;
-        if (confirm(`Remove account "${account.name}"?`)) {
-          await removeItem('accounts', accountId);
-        }
-      }
-    });
-  }
-
-  // Gist controls (moved to footer). Wire save/load buttons if present.
-  const saveBtn = $('saveGist'); if(saveBtn) saveBtn.addEventListener('click', e=>{ e.preventDefault(); saveToGist(false); });
-  const loadBtn = $('loadGist'); if(loadBtn) loadBtn.addEventListener('click', e=>{ e.preventDefault(); loadFromGist(); });
-
-  const gistModal = $('gist-modal');
-  const syncBtn = $('sync-btn');
-  const gistModalClose = $('gist-modal-close');
-
-  if (syncBtn) {
-    syncBtn.addEventListener('click', () => {
-      lockBodyScroll();
-      gistModal.style.display = 'flex';
-    });
-  }
-
-  if (gistModalClose) {
-    gistModalClose.addEventListener('click', () => {
-      gistModal.style.display = 'none';
-      unlockBodyScroll();
-    });
-  }
-
-  if (gistModal) {
-    gistModal.addEventListener('click', e => {
-      if (e.target === gistModal) {
-        gistModal.style.display = 'none';
-        unlockBodyScroll();
-      }
-    });
-  }
-
-  const autofillBtn = $('autofill-btn');
-  if (autofillBtn) {
-    autofillBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      showAutofillModal();
-    });
-  }
-
-  // Export Data button - downloads state as JSON file
-  const exportBtn = $('export-btn');
-  if (exportBtn) {
-    exportBtn.addEventListener('click', () => {
+  document.addEventListener('click', (e) => {
+    const settingsBtn = e.target.closest('[data-settings-action]');
+    if (!settingsBtn) return;
+    const action = settingsBtn.dataset.settingsAction;
+    if (action === 'save') saveToGist(false);
+    if (action === 'load') loadFromGist();
+    if (action === 'export') {
       try {
         const data = JSON.stringify(state, null, 2);
         const blob = new Blob([data], { type: 'application/json' });
@@ -755,59 +1235,12 @@ function setupUI(){
       } catch (err) {
         alert('Export failed: ' + err.message);
       }
-    });
-  }
-
-  // Import Data button - triggers file input
-  const importBtn = $('import-btn');
-  const importFile = $('import-file');
-  if (importBtn && importFile) {
-    importBtn.addEventListener('click', () => {
-      importFile.click();
-    });
-
-    importFile.addEventListener('change', (e) => {
-      const file = e.target.files[0];
-      if (!file) return;
-
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        try {
-          const importedData = JSON.parse(event.target.result);
-          
-          // Validate basic structure
-          if (typeof importedData !== 'object') {
-            throw new Error('Invalid backup file format');
-          }
-
-          if (confirm('This will replace all your current data with the imported backup. Are you sure?')) {
-           // Replace state with normalized imported data
-            state = normalizeState(importedData);
-            saveLocal();
-            render();
-            alert('Data imported successfully!');
-            
-            // Close the settings modal
-            const gistModal = $('gist-modal');
-            if (gistModal) gistModal.style.display = 'none';
-          }
-        } catch (err) {
-          alert('Import failed: ' + err.message);
-        }
-        
-        // Reset file input so same file can be selected again
-        importFile.value = '';
-      };
-
-      reader.onerror = () => {
-        alert('Failed to read file');
-        importFile.value = '';
-      };
-
-      reader.readAsText(file);
-    });
-  }
-
+    }
+    if (action === 'import') {
+      const input = $('import-file');
+      if (input) input.click();
+    }
+  });
 }
 
 // Gist API
@@ -914,7 +1347,10 @@ async function loadFromGist(silent = false){
 }
 
 function setStatus(msg, isError=false){
-  const s = $('status'); s.textContent = msg; s.style.color = isError ? '#ffb4b4' : '#cfe9ff';
+  const s = $('status');
+  if (!s) return;
+  s.textContent = msg;
+  s.style.color = isError ? '#ffb4b4' : '#cfe9ff';
 }
 
 // Show a modal/form for adding spending to an item
@@ -936,7 +1372,7 @@ function showSpendingForm(section, itemId){
   modal.innerHTML = `
     <h3>Add spending to "${escapeHtml(item.name)}"</h3>
     <label>Name<br><input id="_spend_name" type="text" placeholder="e.g. Groceries"></label>
-    <label>Amount<br><input id="_spend_amt" type="number" step="0.01" inputmode="decimal" placeholder="0.00"></label>
+    <label>Amount<br><input id="_spend_amt" type="number" data-clear-on-focus="1" step="0.01" inputmode="decimal" placeholder="0.00"></label>
     <label>Charge to account<br><select id="_spend_account">${accountOptions}</select></label>
     <div class="actions"><button id="_spend_cancel">Cancel</button><button id="_spend_ok">Add</button></div>
   `;
@@ -1016,7 +1452,7 @@ function showEditAmountForm(section, itemId, currentAmount) {
 
   modal.innerHTML = `
     <h3>${title}</h3>
-    <label>Current Amount<br><input id="_edit_amount" type="number" step="0.01" inputmode="decimal" placeholder="0.00" value="${Number(currentAmount).toFixed(2)}"></label>
+    <label>Current Amount<br><input id="_edit_amount" type="number" data-clear-on-focus="1" step="0.01" inputmode="decimal" placeholder="0.00" value="${Number(currentAmount).toFixed(2)}"></label>
     <div class="actions">
       <button id="_edit_amount_cancel">Cancel</button>
       <button id="_edit_amount_ok">Save</button>
@@ -1064,209 +1500,7 @@ function showEditAmountForm(section, itemId, currentAmount) {
   });
 }
 function showItemForm(section, itemId = null) {
-  const isEdit = itemId !== null;
-  let item;
-
-  if (isEdit) {
-    if (section === 'accounts') {
-      item = state.accounts.find(a => a.id === itemId);
-    } else {
-      item = state.items.planning.find(i => i.id === itemId);
-    }
-    if (!item) return;
-  }
-
-  const { overlay, modal } = createModalShell();
-
-  const title = isEdit ? `Edit ${getSectionLabel(section)}` : `Add ${getSectionLabel(section)}`;
-
-  let scheduleControlHtml = '';
-  if (section === 'accounts') {
-    const isChecked = isEdit ? item.isPositive : true;
-    scheduleControlHtml = `<label><input id="_item_due" type="checkbox" ${isChecked ? 'checked' : ''}> Asset (unchecked=debt)</label>`;
-  } else {
-    const recurring = isEdit && item ? !!item.schedule?.recurring : true;
-    const dayValue = isEdit && item && item.schedule?.recurring ? (item.schedule.dayOfMonth || 1) : 1;
-    const dateValue = isEdit && item && !item.schedule?.recurring ? (item.schedule?.date || '') : '';
-    scheduleControlHtml = `
-      <label class="toggle-label"><input id="_item_recurring" type="checkbox" ${recurring ? 'checked' : ''}>Recurring monthly</label>
-      <label id="_item_day_wrap">Day of month<br><input id="_item_day" type="number" min="1" max="31" inputmode="numeric" placeholder="1-31" value="${dayValue}"></label>
-      <label id="_item_date_wrap">Target date<br><input id="_item_date" type="date" value="${dateValue}"></label>`;
-  }
-
-  let historyHtml = '';
-  if (isEdit && section !== 'accounts' && item.spent && item.spent.length > 0) {
-    historyHtml = '<h4>Spend History</h4><ul class="spend-history-list">';
-    for (let index = item.spent.length - 1; index >= 0; index--) {
-      const spend = item.spent[index];
-      historyHtml += `
-        <li class="spend-history-item">
-          <span class="spend-info">${escapeHtml(spend.name)} - $${Number(spend.amount).toFixed(2)} on ${new Date(spend.date).toLocaleDateString()}</span>
-          <button type="button" class="delete-spend-btn" data-index="${index}" title="Delete">✕</button>
-        </li>`;
-    }
-    historyHtml += '</ul>';
-  }
-
-  // Get current amount for editing
-  let currentAmountValue = '';
-  if (isEdit && item) {
-    if (section === 'accounts') {
-      currentAmountValue = Number(item.amount).toFixed(2);
-    } else {
-      const totalSpent = (item.spent || []).reduce((a, b) => a + Number(b.amount || 0), 0);
-      const remaining = Number(item.amount) - totalSpent;
-      currentAmountValue = remaining.toFixed(2);
-    }
-  }
-
-  modal.innerHTML = `
-    <h3>${title}</h3>
-    <label>Name<br><input id="_item_name" type="text" placeholder="Name" value="${isEdit && item ? escapeHtml(item.name) : ''}"></label>
-    <label>Current Amount<br><input id="_item_amount" type="number" step="0.01" inputmode="decimal" placeholder="0.00" value="${currentAmountValue}"></label>
-    ${section !== 'accounts' ? `<label>Needed Amount<br><input id="_item_needed_amount" type="number" step="0.01" inputmode="decimal" placeholder="0.00" value="${isEdit && item && item.neededAmount !== undefined ? Number(item.neededAmount).toFixed(2) : ''}"></label>` : ''}
-    ${scheduleControlHtml}
-    ${historyHtml}
-    <div class="actions">
-      ${isEdit ? '<button id="_item_delete" class="delBtn">Delete</button>' : ''}
-      <button id="_item_cancel">Cancel</button>
-      ${isEdit && section !== 'accounts' ? '<button id="_item_spend" class="spendBtn">Spend</button>' : ''}
-      <button id="_item_ok">${isEdit ? 'Save' : 'Add'}</button>
-    </div>
-  `;
-  overlay.appendChild(modal);
-  document.body.appendChild(overlay);
-
-  setTimeout(() => document.getElementById('_item_name').focus(), 20);
-
-  function cleanup() {
-    unlockBodyScroll();
-    overlay.remove();
-  }
-
-  modal.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') { e.preventDefault(); document.getElementById('_item_ok').click(); }
-  });
-
-  clearOnFirstFocus(document.getElementById('_item_amount'));
-  if (section !== 'accounts') {
-    clearOnFirstFocus(document.getElementById('_item_needed_amount'));
-    clearOnFirstFocus(document.getElementById('_item_day'));
-
-    const recurringToggle = document.getElementById('_item_recurring');
-    const dayWrap = document.getElementById('_item_day_wrap');
-    const dateWrap = document.getElementById('_item_date_wrap');
-    const syncScheduleControls = () => {
-      const isRecurring = recurringToggle.checked;
-      dayWrap.style.display = isRecurring ? '' : 'none';
-      dateWrap.style.display = isRecurring ? 'none' : '';
-    };
-    recurringToggle.addEventListener('change', syncScheduleControls);
-    syncScheduleControls();
-  }
-
-  document.getElementById('_item_cancel').addEventListener('click', () => cleanup());
-  overlay.addEventListener('click', (e) => {
-    if (e.target === overlay) cleanup();
-  });
-
-  if (isEdit) {
-    if (section !== 'accounts') {
-      document.getElementById('_item_spend').addEventListener('click', async () => {
-        showSpendingForm(section, itemId);
-        cleanup();
-      });
-    }
-
-    document.getElementById('_item_delete').addEventListener('click', async () => {
-      if (confirm('Remove item?')) {
-        await removeItem(section, itemId);
-        cleanup();
-      }
-    });
-
-    // Handle delete spend item buttons
-      document.querySelectorAll('.delete-spend-btn').forEach(btn => {
-        btn.addEventListener('click', async (e) => {
-          e.preventDefault();
-          const index = parseInt(btn.dataset.index);
-          if (confirm('Delete this spend entry?')) {
-          // Remove the spend item and reverse the linked account change
-          if (item.spent && item.spent[index]) {
-            deleteSpendEntry(section, itemId, index);
-            cleanup();
-          }
-          }
-        });
-      });
-  }
-
-  document.getElementById('_item_ok').addEventListener('click', () => {
-    const name = document.getElementById('_item_name').value.trim();
-    // Treat blank as 0 for number inputs
-    const amountValue = document.getElementById('_item_amount').value.trim();
-    const newAmount = amountValue === '' ? 0 : parseFloat(amountValue);
-    const neededAmountValue = section !== 'accounts' ? document.getElementById('_item_needed_amount').value.trim() : '';
-    const neededAmount = section !== 'accounts' ? (neededAmountValue === '' ? 0 : parseFloat(neededAmountValue)) : undefined;
-
-    if (!name) {
-      alert('Enter a name');
-      return;
-    }
-
-    let due;
-    let schedule;
-    if (section === 'accounts') {
-      due = document.getElementById('_item_due').checked;
-    } else {
-      const recurring = document.getElementById('_item_recurring').checked;
-      if (recurring) {
-        const day = parseInt(document.getElementById('_item_day').value);
-        if (isNaN(day) || day < 1 || day > 31) {
-          alert('Enter valid day 1-31');
-          return;
-        }
-        schedule = { recurring: true, date: null, dayOfMonth: day };
-      } else {
-        const date = document.getElementById('_item_date').value;
-        if (!date) {
-          alert('Enter a target date');
-          return;
-        }
-        schedule = { recurring: false, date, dayOfMonth: null };
-      }
-    }
-
-    if (isEdit) {
-      if (section !== 'accounts') {
-        const oldRemaining = Number(item.amount) - (item.spent || []).reduce((a, b) => a + Number(b.amount || 0), 0);
-        const amountChanged = Math.abs(newAmount - oldRemaining) > 0.001;
-        item.name = name;
-        item.schedule = schedule;
-        item.neededAmount = neededAmount;
-        if (amountChanged) {
-          item.amount = newAmount;
-          item.spent = [];
-          recordAction({ type: 'edit amount', name: item.name, section, date: new Date().toISOString() });
-        } else {
-          recordAction({ type: 'edit', name: item.name, section, date: new Date().toISOString() });
-        }
-        saveLocal(); render(); autosaveToGist();
-      } else {
-        const oldAmount = Number(item.amount) || 0;
-        item.name = name;
-        item.amount = newAmount;
-        item.isPositive = due;
-        recordAction({ type: Math.abs(newAmount - oldAmount) > 0.001 ? 'edit amount' : 'edit', name: item.name, section: 'accounts', date: new Date().toISOString() });
-        saveLocal(); render(); autosaveToGist();
-      }
-    } else {
-      const finalNeededAmount = neededAmount !== undefined && !isNaN(neededAmount) ? neededAmount : newAmount;
-      addItem({ name, amount: newAmount, neededAmount: finalNeededAmount, schedule, due, section, enableSpending: section !== 'accounts' ? true : undefined });
-    }
-
-    cleanup();
-  });
+  openInlineRow(section, itemId || '__new__');
 }
 
 // ============ PAYCHECK AUTOFILL ============
@@ -1345,165 +1579,7 @@ function getAutoFillItems() {
 
 
 function showAutofillModal() {
-  const { overlay, modal } = createCenteredModalShell();
-  modal.classList.add('autofill-modal');
-
-  const storedFreq = localStorage.getItem(AUTOFILL_FREQ_KEY) || 'biweekly';
-  const storedStartDate = localStorage.getItem(AUTOFILL_START_DATE_KEY) || '';
-
-  modal.innerHTML = `
-    <h3>Auto Fill</h3>
-    <div id="_af_items_container"></div>
-    <div class="autofill-freq-row">
-      <span class="autofill-freq-label">Pay Frequency</span>
-      <select id="_af_frequency">
-        <option value="weekly" ${storedFreq === 'weekly' ? 'selected' : ''}>Every Week</option>
-        <option value="biweekly" ${storedFreq === 'biweekly' ? 'selected' : ''}>Every Two Weeks</option>
-        <option value="monthly" ${storedFreq === 'monthly' ? 'selected' : ''}>Every Month</option>
-      </select>
-    </div>
-    <div class="autofill-freq-row">
-      <span class="autofill-freq-label">Start Date</span>
-      <input type="date" id="_af_start_date" value="${storedStartDate}">
-    </div>
-    <div class="actions">
-      <button id="_af_cancel">Cancel</button>
-      <button id="_af_fill">Fill Items</button>
-    </div>
-  `;
-  overlay.appendChild(modal);
-  document.body.appendChild(overlay);
-
-  function buildItemRow(item, gap, metaStr, checked, affordable = true) {
-    const safeGap = gap.toFixed(2);
-    const amountClass = affordable ? 'autofill-item-amount' : 'autofill-item-amount autofill-item-amount--unaffordable';
-    return `
-      <label class="autofill-item">
-        <input type="checkbox" class="autofill-cb" data-id="${item.id}" data-gap="${safeGap}" ${checked ? 'checked' : ''}>
-        <span class="autofill-rec-name">${escapeHtml(item.name)}</span>
-        <span class="autofill-rec-meta">${escapeHtml(metaStr)}</span>
-        <span class="${amountClass}">+$${safeGap}</span>
-      </label>`;
-  }
-
-  function updateFillBtn() {
-    const fillBtn = document.getElementById('_af_fill');
-    if (!fillBtn) return;
-    fillBtn.disabled = modal.querySelectorAll('.autofill-cb:checked').length === 0;
-  }
-
-  function updateTotal() {
-    let total = 0;
-    modal.querySelectorAll('.autofill-cb:checked').forEach(cb => {
-      total += parseFloat(cb.dataset.gap) || 0;
-    });
-    const el = modal.querySelector('.autofill-total-amount');
-    if (el) el.textContent = '$' + total.toFixed(2);
-    const rem = document.getElementById('_af_remaining');
-    if (rem) rem.textContent = '$' + (lastAvailableAmount - total).toFixed(2);
-    updateFillBtn();
-  }
-
-  function renderItems() {
-    const freq = document.getElementById('_af_frequency').value;
-    const startDate = document.getElementById('_af_start_date').value;
-    localStorage.setItem(AUTOFILL_FREQ_KEY, freq);
-    localStorage.setItem(AUTOFILL_START_DATE_KEY, startDate);
-    state.paySchedule = state.paySchedule || {};
-    state.paySchedule.frequency = freq;
-    state.paySchedule.startDate = startDate;
-    saveLocal();
-    const container = document.getElementById('_af_items_container');
-    container.classList.add('autofill-scroll');
-    const eligible = getAutoFillItems();
-
-    if (eligible.length === 0) {
-      container.innerHTML = '<p class="autofill-hint">All items are fully funded.</p>';
-      updateFillBtn();
-      return;
-    }
-
-    const withPerCheck = eligible.map(e => {
-      const checks = e.dueDate ? checksUntilDate(e.dueDate, freq, startDate) : 1;
-      const perCheckGap = e.gap / checks;
-      return { ...e, perCheckGap };
-    });
-
-    let available = lastAvailableAmount;
-    const affordMap = new Map();
-    [...withPerCheck].sort((a, b) => (a.dueDate?.getTime() || 0) - (b.dueDate?.getTime() || 0)).forEach(e => {
-      const canAfford = available >= e.perCheckGap - 0.005;
-      if (canAfford) available -= e.perCheckGap;
-      affordMap.set(e.item.id, canAfford);
-    });
-
-    let html = `<div class="autofill-header">Items to Fund</div><div class="autofill-list">`;
-    withPerCheck
-      .sort((a, b) => (a.dueDate?.getTime() || 0) - (b.dueDate?.getTime() || 0))
-      .forEach(({ item, perCheckGap, dueDate }) => {
-        const checks = dueDate ? checksUntilDate(dueDate, freq, startDate) : 1;
-        const dueFmt = dueDate ? dueDate.toLocaleDateString([], { month: 'short', day: 'numeric' }) : '-';
-        const meta = `${dueFmt} · ${checks} check${checks !== 1 ? 's' : ''}`;
-        const affordable = affordMap.get(item.id) !== false;
-        html += buildItemRow(item, perCheckGap, meta, affordable, affordable);
-      });
-    html += `</div>`;
-
-    const affordableTotal = withPerCheck.reduce((a, e) => a + (affordMap.get(e.item.id) !== false ? e.perCheckGap : 0), 0);
-    const remainingAfter = lastAvailableAmount - affordableTotal;
-    html += `
-      <div class="autofill-total">
-        <span>Total to allocate</span>
-        <span class="autofill-total-amount">$${affordableTotal.toFixed(2)}</span>
-      </div>
-      <div class="autofill-remaining">
-        <span>Available after</span>
-        <span id="_af_remaining">$${remainingAfter.toFixed(2)}</span>
-      </div>`;
-
-    container.innerHTML = html;
-
-    modal.querySelectorAll('.autofill-cb').forEach(cb => {
-      cb.addEventListener('change', updateTotal);
-    });
-
-    updateFillBtn();
-  }
-
-  renderItems();
-  document.getElementById('_af_frequency').addEventListener('change', renderItems);
-  document.getElementById('_af_start_date').addEventListener('change', renderItems);
-
-  function cleanup() { unlockBodyScroll(); overlay.remove(); }
-  document.getElementById('_af_cancel').addEventListener('click', cleanup);
-  overlay.addEventListener('click', e => { if (e.target === overlay) cleanup(); });
-
-  document.getElementById('_af_fill').addEventListener('click', async (e) => {
-    const btn = e.target;
-    const originalText = btn.textContent;
-    btn.disabled = true;
-    btn.textContent = 'Filling...';
-
-    modal.querySelectorAll('.autofill-cb:checked').forEach(cb => {
-      const id = cb.dataset.id;
-      const gap = parseFloat(cb.dataset.gap) || 0;
-      if (gap <= 0) return;
-      const item = (state.items.planning || []).find(i => i.id === id);
-      if (item) {
-        item.amount = (Number(item.amount) || 0) + gap;
-        recordAction({ type: 'autofill', name: item.name, amount: gap.toFixed(2), date: new Date().toISOString() });
-      }
-    });
-
-    saveLocal();
-    render();
-    
-    if (typeof setStatus === 'function') setStatus('Allocating funds...');
-    await autosaveToGist();
-    if (typeof setStatus === 'function') setStatus('Funds allocated and saved');
-    
-    cleanup();
-  });
+  openInlineRow('planning', 'autofill');
 }
 
 // Auto-refresh when app becomes visible (e.g., returning from background)
