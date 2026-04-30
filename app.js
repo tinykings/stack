@@ -484,6 +484,14 @@ function renderPlanningEditor(item, isDraft=false){
       <div class="spending-action-row" data-spend-available="${spendAvailable ? '1' : '0'}" data-spending-enabled="${spendingEnabled ? '1' : '0'}">
         <button type="button" class="spendBtn planning-spend-btn" data-inline-action="spend" ${spendAvailable ? '' : 'disabled aria-hidden="true" tabindex="-1"' }>Spend</button>
       </div>
+      <div class="spend-inline-panel" hidden>
+        <label>Spend Name<br><input name="spendName" type="text" placeholder="e.g. Groceries"></label>
+        <label>Spend Amount<br><input name="spendAmount" type="number" data-clear-on-focus="1" step="0.01" inputmode="decimal" placeholder="0.00"></label>
+        <div class="actions actions--spend">
+          <button type="button" data-inline-action="spend-cancel">Cancel</button>
+          <button type="button" data-inline-action="spend-submit">Add Spend</button>
+        </div>
+      </div>
       <label class="toggle-label"><input name="recurring" type="checkbox" ${recurring ? 'checked' : ''}>Recurring monthly</label>
       <label class="inline-toggle-target" data-toggle-wrap="day" style="${recurring ? '' : 'display:none;'}">Day of month<br><input name="day" type="number" min="1" max="31" inputmode="numeric" placeholder="1-31" value="${dayValue}"></label>
       <label class="inline-toggle-target" data-toggle-wrap="date" style="${recurring ? 'display:none;' : ''}">Target date<br><input name="date" type="date" value="${dateValue}"></label>
@@ -1194,7 +1202,55 @@ function handleInlineClick(e){
     const spendingToggle = row.querySelector('[name="enableSpending"]');
     const spendingEnabled = spendingToggle ? spendingToggle.checked : !!(state.items.planning || []).find(i => i.id === itemId)?.enableSpending;
     if (!spendingEnabled) return;
-    showSpendingForm(section, itemId);
+    const spendPanel = row.querySelector('.spend-inline-panel');
+    if (!spendPanel) return;
+
+    const shouldOpen = spendPanel.hidden;
+    spendPanel.hidden = !shouldOpen;
+    row.dataset.spendOpen = shouldOpen ? '1' : '0';
+    actionBtn.textContent = shouldOpen ? 'Hide' : 'Spend';
+
+    if (shouldOpen) {
+      const spendName = spendPanel.querySelector('[name="spendName"]');
+      if (spendName) setTimeout(() => spendName.focus(), 0);
+    } else {
+      const spendName = spendPanel.querySelector('[name="spendName"]');
+      const spendAmount = spendPanel.querySelector('[name="spendAmount"]');
+      if (spendName) spendName.value = '';
+      if (spendAmount) spendAmount.value = '';
+    }
+    return;
+  }
+
+  if (action === 'spend-cancel' && section === 'planning' && itemId) {
+    const spendPanel = row.querySelector('.spend-inline-panel');
+    if (spendPanel) {
+      spendPanel.hidden = true;
+      row.dataset.spendOpen = '0';
+      const spendName = spendPanel.querySelector('[name="spendName"]');
+      const spendAmount = spendPanel.querySelector('[name="spendAmount"]');
+      if (spendName) spendName.value = '';
+      if (spendAmount) spendAmount.value = '';
+    }
+    const spendBtn = row.querySelector('[data-inline-action="spend"]');
+    if (spendBtn) spendBtn.textContent = 'Spend';
+    return;
+  }
+
+  if (action === 'spend-submit' && section === 'planning' && itemId) {
+    const spendNameInput = row.querySelector('[name="spendName"]');
+    const spendAmountInput = row.querySelector('[name="spendAmount"]');
+    const spendName = spendNameInput ? spendNameInput.value.trim() : '';
+    const spendAmtValue = spendAmountInput ? spendAmountInput.value.trim() : '';
+    const spendAmount = spendAmtValue === '' ? 0 : parseFloat(spendAmtValue);
+
+    if (!spendName) { alert('Enter a name for the spend'); return; }
+    if (spendAmount <= 0) { alert('Enter a valid amount greater than 0'); return; }
+
+    addSpending(section, itemId, spendName, spendAmount);
+    saveLocal();
+    render();
+    autosaveToGist();
     return;
   }
 
@@ -1271,6 +1327,15 @@ function setupUI(){
   const planningList = $('planning-list');
   if (planningList) {
     planningList.addEventListener('click', handleInlineClick);
+    planningList.addEventListener('keydown', (e) => {
+      if (e.key !== 'Enter') return;
+      const spendPanel = e.target.closest('.spend-inline-panel');
+      if (!spendPanel) return;
+      e.preventDefault();
+      const row = e.target.closest('.inline-row');
+      const submitBtn = row ? row.querySelector('[data-inline-action="spend-submit"]') : null;
+      if (submitBtn) submitBtn.click();
+    });
     planningList.addEventListener('submit', (e) => {
       const form = e.target.closest('form[data-inline-submit]');
       if (!form) return;

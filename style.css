@@ -116,8 +116,23 @@ body {
   font-weight: 700;
   line-height: 0.95;
   letter-spacing: -0.05em;
-  color: var(--amber);
+  color: var(--green-text);
   text-align: center;
+}
+
+@media (max-width: 767px) {
+  .available-banner {
+    padding: 0 12px 14px;
+  }
+
+  .available-banner-inner {
+    min-height: 112px;
+    padding: 18px 16px 20px;
+  }
+
+  .available-banner-value {
+    font-size: clamp(28px, 9vw, 40px);
+  }
 }
 
 /* Semantic colors */
@@ -599,14 +614,38 @@ body {
 
 .inline-editor--planning .spending-action-row {
   display: flex;
-  justify-content: flex-end;
+  justify-content: stretch;
   margin-top: 8px;
+}
+
+.inline-editor--planning .spend-inline-panel {
+  display: grid;
+  gap: 10px;
+  margin-top: 10px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.inline-editor--planning .spend-inline-panel[hidden] {
+  display: none;
+}
+
+.inline-editor--planning .spend-inline-panel .actions--spend {
+  margin-top: 0;
+  justify-content: stretch;
+}
+
+.inline-editor--planning .spend-inline-panel .actions--spend button {
+  flex: 1 1 0;
 }
 
 .inline-editor--planning .spending-action-row .planning-spend-btn {
   display: none;
-  flex: 0 0 auto;
-  min-width: 110px;
+  flex: 1 1 auto;
+  width: 100%;
+  min-width: 0;
   padding: 10px 20px;
   border-radius: var(--radius);
   border: 1px solid var(--border-light);
