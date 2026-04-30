@@ -314,7 +314,7 @@ function formatCurrency(value){
 }
 
 function formatCurrencyWhole(value){
-  return '$' + Math.trunc(Number(value || 0)).toLocaleString('en-US');
+  return '$' + Math.round(Number(value || 0)).toLocaleString('en-US');
 }
 
 function getVisibleSections(){
@@ -733,14 +733,14 @@ function computeTotals(){
       direction,
       shouldShowBanner ? (value) => {
         const bannerValue = $('available-banner-value');
-        if (bannerValue) bannerValue.textContent = formatCurrency(value);
+        if (bannerValue) bannerValue.textContent = formatCurrencyWhole(value);
       } : null,
       shouldShowBanner ? () => {
         availableBannerHideTimer = setTimeout(() => hideAvailableBanner(bannerToken), 180);
       } : null
     );
   } else {
-    availableEl.textContent = formatCurrency(available);
+    availableEl.textContent = formatCurrencyWhole(available);
   }
   lastAvailableAmount = available; // Update lastAvailableAmount after setting new value
   hasComputedTotals = true;
@@ -763,7 +763,7 @@ function animateNumberChange(element, startValue, endValue, duration, direction,
     const easedProgress = easing(progress);
 
     const currentValue = startValue + (endValue - startValue) * easedProgress;
-    element.textContent = '$' + currentValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    element.textContent = formatCurrencyWhole(currentValue);
     if (onFrame) onFrame(currentValue, progress);
 
     if (progress < 1) {
@@ -819,7 +819,7 @@ function showAvailableBanner(value){
   }
 
   availableBannerToken += 1;
-  bannerValue.textContent = formatCurrency(value);
+  bannerValue.textContent = formatCurrencyWhole(value);
   banner.classList.add('is-visible');
   banner.setAttribute('aria-hidden', 'false');
   return availableBannerToken;

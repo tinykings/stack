@@ -44,6 +44,8 @@
 html {
   scroll-behavior: smooth;
   background: var(--page-bg);
+  min-height: 100%;
+  overscroll-behavior-y: none;
 }
 
 body {
@@ -57,9 +59,10 @@ body {
   background: var(--page-bg);
   color: var(--text);
   -webkit-overflow-scrolling: touch;
-  min-height: 100vh;
+  min-height: 100dvh;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  overscroll-behavior-y: none;
 }
 
 .available-banner {
@@ -436,6 +439,8 @@ body {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  width: 100%;
+  min-width: 0;
 }
 
 .inline-editor label,
@@ -517,6 +522,7 @@ body {
   justify-content: flex-end;
   gap: 8px;
   margin-top: 4px;
+  flex-wrap: wrap;
 }
 
 .inline-editor .actions button,
@@ -533,6 +539,7 @@ body {
   transition: all 0.1s;
   background: var(--surface);
   color: var(--text);
+  flex: 1 1 120px;
 }
 
 .inline-editor .actions button[type="submit"],
@@ -551,6 +558,13 @@ body {
   background: var(--blue);
   border-color: var(--blue);
   color: #141414;
+}
+
+@media (max-width: 599px) {
+  .inline-editor .actions button[data-inline-action="spend"] {
+    flex-basis: 100%;
+    width: 100%;
+  }
 }
 
 .inline-row .history-list,
