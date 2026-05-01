@@ -551,15 +551,12 @@ function renderItemSummary(section, item){
 function renderAddRow(section){
   const open = isInlineRowOpen(section, '__new__');
   const title = section === 'accounts' ? 'Add Account' : 'Add Item';
-  const showHelper = section !== 'accounts' && (state.items.planning || []).length === 0 && (state.accounts || []).length > 0;
-  const helperText = 'Add a budget item';
   return `
     <div class="item inline-row inline-row--new ${open ? 'is-open' : ''}" data-inline-section="${section}" data-inline-key="__new__">
       <button type="button" class="item-content item-clickable inline-row-toggle" data-inline-toggle="1" aria-expanded="${open ? 'true' : 'false'}">
         <div class="item-info">
           <div class="item-name">${title}</div>
         </div>
-        ${showHelper ? `<div class="item-meta-row"><span class="meta">${helperText}</span></div>` : ''}
       </button>
       ${open ? (section === 'accounts' ? renderAccountEditor({}, true) : renderPlanningEditor({}, true)) : ''}
     </div>
@@ -757,10 +754,17 @@ function renderAccountCards(){
   if (!accountsEl) return;
 
   const accounts = getSectionItems('accounts');
-  const hintEl = $('empty-accounts-hint');
-  if (hintEl) hintEl.hidden = accounts.length !== 0;
 
   accountsEl.innerHTML = `${accounts.map(account => renderItemSummary('accounts', account)).join('')}${renderAddRow('accounts')}`;
+}
+
+function syncLogoHints(){
+  const accounts = getSectionItems('accounts');
+  const planning = getSectionItems('planning');
+  const emptyAccountsHint = $('empty-accounts-hint');
+  const emptyPlanningHint = $('empty-planning-hint');
+  if (emptyAccountsHint) emptyAccountsHint.hidden = accounts.length !== 0;
+  if (emptyPlanningHint) emptyPlanningHint.hidden = !(accounts.length > 0 && planning.length === 0);
 }
 
 function renderSettingsAccounts(){
@@ -893,6 +897,7 @@ function render(){
   const totals = computeTotals();
   renderAccountCards();
   renderPlanningList(totals);
+  syncLogoHints();
   centerOpenInlineRow();
 }
 
