@@ -17,6 +17,7 @@ let modalLockCount = 0;
 let modalScrollY = 0;
 let inlineRowState = null;
 let pendingInlineRowFocus = null;
+let availableToastHideTimer = 0;
 let autofillSelection = new Set();
 let autofillSelectionInitialized = false;
 let hasRenderedAvailableOnce = false;
@@ -831,7 +832,7 @@ function computeTotals(){
     availableEl.style.color = available < 0 ? 'var(--pink)' : '';
   }
   lastAvailableAmount = available; // Update lastAvailableAmount after setting new value
-  if (shouldAnimateAvailable) triggerAvailableFlip();
+  if (shouldAnimateAvailable) showAvailableToast(available);
   hasRenderedAvailableOnce = true;
   return { accounts: totalAccounts, planning: totalPlanning, available };
 }
@@ -871,6 +872,35 @@ function triggerAvailableFlip(){
     void panel.offsetWidth;
     panel.classList.add('is-flipping');
   });
+}
+
+function updateAvailableToastValue(value){
+  const toastValue = $('available-toast-value');
+  if (!toastValue) return;
+  toastValue.textContent = formatCurrencyWhole(value);
+  toastValue.style.color = value < 0 ? 'var(--pink)' : '';
+}
+
+function showAvailableToast(value){
+  const toast = $('available-toast');
+  const toastCard = q('.available-toast-card');
+  if (!toast || !toastCard) return;
+
+  updateAvailableToastValue(value);
+  document.body.classList.add('available-toast-active');
+  toast.classList.add('is-visible');
+  toast.setAttribute('aria-hidden', 'false');
+  toastCard.classList.remove('is-flipping');
+  void toastCard.offsetWidth;
+  toastCard.classList.add('is-flipping');
+
+  if (availableToastHideTimer) window.clearTimeout(availableToastHideTimer);
+  availableToastHideTimer = window.setTimeout(() => {
+    toast.classList.remove('is-visible');
+    toast.setAttribute('aria-hidden', 'true');
+    document.body.classList.remove('available-toast-active');
+    availableToastHideTimer = 0;
+  }, 1000);
 }
 
 function centerOpenInlineRow(){

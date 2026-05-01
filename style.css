@@ -2647,6 +2647,34 @@ body.detail-open .stack-meta {
   filter: none;
 }
 
+body.available-toast-active .hero-available {
+  opacity: 0;
+  visibility: hidden;
+}
+
+.available-toast {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  opacity: 0;
+  transform: scale(0.98);
+  transition: opacity 160ms ease, transform 160ms ease;
+  z-index: 1300;
+}
+
+.available-toast.is-visible {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.available-toast-card {
+  width: min(78vw, 460px);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.32);
+}
+
 .container.app-shell {
   max-width: 880px;
   gap: 18px;
@@ -2689,7 +2717,12 @@ body.detail-open .stack-meta {
   align-items: center;
 }
 
-.available-amount #available {
+.available-toast-card {
+  border-radius: 24px;
+}
+
+.available-amount #available,
+.available-toast-card #available-toast-value {
   font-family: var(--display);
   font-size: clamp(3.25rem, 15vw, 6.6rem);
   line-height: 0.94;
@@ -2747,11 +2780,13 @@ body.detail-open .stack-meta {
   animation: availableLidBottom 520ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-.available-amount.is-flipping #available::before {
+.available-amount.is-flipping #available::before,
+.available-toast-card.is-flipping #available-toast-value::before {
   animation: availableSmokeLeft 520ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-.available-amount.is-flipping #available::after {
+.available-amount.is-flipping #available::after,
+.available-toast-card.is-flipping #available-toast-value::after {
   animation: availableSmokeRight 520ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
@@ -2847,7 +2882,9 @@ body.detail-open .stack-meta {
 }
 
 .available-amount #available::before,
-.available-amount #available::after {
+.available-amount #available::after,
+.available-toast-card #available-toast-value::before,
+.available-toast-card #available-toast-value::after {
   content: '';
   position: absolute;
   top: 50%;
@@ -2864,12 +2901,14 @@ body.detail-open .stack-meta {
   filter: drop-shadow(2px 2px 0 rgba(17, 17, 17, 0.18));
 }
 
-.available-amount #available::before {
+.available-amount #available::before,
+.available-toast-card #available-toast-value::before {
   left: -34px;
   transform: translate(-30%, -50%) scale(0.25);
 }
 
-.available-amount #available::after {
+.available-amount #available::after,
+.available-toast-card #available-toast-value::after {
   right: -34px;
   transform: translate(30%, -50%) scale(0.25);
 }
