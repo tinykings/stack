@@ -244,7 +244,8 @@ function normalizeState(input){
     return {
       ...account,
       amount: Number(account.amount) || 0,
-      isPositive: account.isPositive !== undefined ? !!account.isPositive : account.due !== undefined ? !!account.due : true
+      isPositive: account.isPositive !== undefined ? !!account.isPositive : account.due !== undefined ? !!account.due : true,
+      pinned: !!account.pinned
     };
   };
 
@@ -285,6 +286,7 @@ function normalizeState(input){
       neededAmount: item.neededAmount !== undefined ? Number(item.neededAmount) || 0 : amount,
       spent,
       enableSpending: item.enableSpending !== undefined ? !!item.enableSpending : false,
+      pinned: !!item.pinned,
       schedule
     };
   };
@@ -368,6 +370,7 @@ function getVisibleSections(){
 function sortSectionItems(section, items){
   const copy = (items || []).slice();
   copy.sort((a, b) => {
+    if (section === 'planning' && !!a.pinned !== !!b.pinned) return a.pinned ? -1 : 1;
     if(section === 'accounts') return (a.name || '').localeCompare(b.name || '');
     if(section === 'planning'){
       return getPlanningSortTime(a) - getPlanningSortTime(b);
@@ -426,7 +429,11 @@ function renderAccountEditor(item, isDraft=false){
       <label>Amount<br><input name="amount" type="number" data-clear-on-focus="1" step="0.01" inputmode="decimal" placeholder="0.00" value="${isDraft ? '' : Number(item?.amount || 0).toFixed(2)}"></label>
       <label class="toggle-label"><input name="isPositive" type="checkbox" ${isDraft || item?.isPositive ? 'checked' : ''}> Asset (unchecked=debt)</label>
       <div class="actions">
-        ${isDraft ? '' : '<button type="button" class="delBtn" data-inline-action="delete-account">Delete</button>'}
+        ${isDraft ? '' : `<button type="button" class="delBtn account-delete-btn" data-inline-action="delete-account" aria-label="Delete account" title="Delete account">
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path d="M9 3h6l1 2h4v2H4V5h4l1-2zm1 6h2v8h-2V9zm4 0h2v8h-2V9zM7 9h2v8H7V9zm1 11h8a2 2 0 0 0 2-2V8H6v10a2 2 0 0 0 2 2z"></path>
+          </svg>
+        </button>`}
         <button type="button" data-inline-action="cancel">Cancel</button>
         <button type="submit">${isDraft ? 'Add' : 'Save'}</button>
       </div>
@@ -435,6 +442,7 @@ function renderAccountEditor(item, isDraft=false){
 }
 
 function renderPlanningEditor(item, isDraft=false){
+  const isPinned = !isDraft && !!item?.pinned;
   const currentAmountValue = isDraft ? '' : (() => {
     const totalSpent = (item.spent || []).reduce((a, b) => a + Number(b.amount || 0), 0);
     return (Number(item.amount) - totalSpent).toFixed(2);
@@ -465,7 +473,12 @@ function renderPlanningEditor(item, isDraft=false){
         <button type="submit">Add</button>
       </div>` : `
       <div class="actions actions--bottom">
-        <button type="button" class="delBtn planning-delete-btn" data-inline-action="delete-planning">Delete</button>
+        <button type="button" class="delBtn planning-delete-btn" data-inline-action="delete-planning" aria-label="Delete item" title="Delete item">
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path d="M9 3h6l1 2h4v2H4V5h4l1-2zm1 6h2v8h-2V9zm4 0h2v8h-2V9zM7 9h2v8H7V9zm1 11h8a2 2 0 0 0 2-2V8H6v10a2 2 0 0 0 2 2z"></path>
+          </svg>
+        </button>
+        <button type="button" class="pin-text-btn" data-inline-action="pin">${isPinned ? 'Unpin' : 'Pin'}</button>
         <button type="button" data-inline-action="cancel">Cancel</button>
         <button type="submit">Save</button>
       </div>`;
@@ -535,8 +548,8 @@ function renderItemSummary(section, item){
   if (mostRecent) metaBits.push(`${mostRecent.name} (-${Number(mostRecent.amount).toFixed(2)})`);
 
   return `
-    <div class="item inline-row ${open ? 'is-open' : ''}" data-inline-section="planning" data-inline-key="${item.id}">
-      <button type="button" class="item-content item-clickable inline-row-toggle" data-inline-toggle="1" aria-expanded="${open ? 'true' : 'false'}">
+    <div class="item inline-row ${open ? 'is-open' : ''} ${item.pinned ? 'is-pinned' : ''}" data-inline-section="planning" data-inline-key="${item.id}">
+      <button type="button" class="item-content item-clickable inline-row-toggle ${item.pinned ? 'is-pinned' : ''}" data-inline-toggle="1" aria-expanded="${open ? 'true' : 'false'}">
         <div class="item-info">
           <div class="item-name">${escapeHtml(item.name)}</div>
           <div class="item-amount ${amountClass}">${formatCurrency(Math.abs(remaining))}</div>
@@ -903,6 +916,23 @@ function showAvailableToast(value){
   }, 1000);
 }
 
+function scrollElementToCenter(element){
+  if (!element) return;
+
+  const rect = element.getBoundingClientRect();
+  const viewportHeight = window.innerHeight || document.documentElement.clientHeight || 0;
+  const maxScrollY = Math.max(
+    0,
+    (document.documentElement.scrollHeight || document.body.scrollHeight || 0) - viewportHeight
+  );
+  const targetTop = Math.min(
+    maxScrollY,
+    Math.max(0, (window.scrollY || window.pageYOffset || 0) + rect.top - ((viewportHeight - rect.height) / 2))
+  );
+
+  window.scrollTo({ top: targetTop, behavior: 'smooth' });
+}
+
 function centerOpenInlineRow(){
   if (!pendingInlineRowFocus) return;
   const { section, key } = pendingInlineRowFocus;
@@ -911,7 +941,9 @@ function centerOpenInlineRow(){
 
   pendingInlineRowFocus = null;
   requestAnimationFrame(() => {
-    row.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    requestAnimationFrame(() => {
+      scrollElementToCenter(row);
+    });
   });
 }
 
@@ -940,7 +972,7 @@ function addItem({name,amount,neededAmount,schedule,due,section,enableSpending})
     // accounts have different structure: name, amount, isPositive
     state.accounts = state.accounts || [];
     const id = uid();
-    state.accounts.push({id, name, amount: parseFloat(amount)||0, isPositive: due === true}); // due used as isPositive flag
+    state.accounts.push({id, name, amount: parseFloat(amount)||0, isPositive: due === true, pinned: false}); // due used as isPositive flag
     recordAction({ type: 'add', name, section: 'accounts', date: new Date().toISOString() });
     saveLocal(); render();
     autosaveToGist();
@@ -951,7 +983,7 @@ function addItem({name,amount,neededAmount,schedule,due,section,enableSpending})
     const finalNeededAmount = neededAmount !== undefined ? parseFloat(neededAmount) : parseFloat(amount);
     const spendingEnabled = enableSpending !== undefined ? enableSpending : false;
     const id = uid();
-    state.items.planning.push({id,name,amount: parseFloat(amount)||0,neededAmount: finalNeededAmount||0,schedule,spent:[],enableSpending: spendingEnabled});
+    state.items.planning.push({id,name,amount: parseFloat(amount)||0,neededAmount: finalNeededAmount||0,schedule,spent:[],enableSpending: spendingEnabled,pinned:false});
     recordAction({ type: 'add', name, section: 'planning', date: new Date().toISOString() });
     saveLocal(); render();
     autosaveToGist();
@@ -980,6 +1012,26 @@ function updateItem(section, id, {name, amount, due, schedule, neededAmount, ena
     }
   }
   saveLocal(); render();
+  autosaveToGist();
+}
+
+function togglePinnedItem(section, id){
+  if (section !== 'planning') return;
+  const collection = section === 'accounts' ? state.accounts : state.items.planning;
+  const item = collection.find(entry => entry.id === id);
+  if (!item) return;
+
+  item.pinned = !item.pinned;
+  inlineRowState = null;
+  pendingInlineRowFocus = { section, key: id };
+  recordAction({
+    type: item.pinned ? 'pin' : 'unpin',
+    name: item.name,
+    section,
+    date: new Date().toISOString()
+  });
+  saveLocal();
+  render();
   autosaveToGist();
 }
 
@@ -1232,6 +1284,11 @@ function handleInlineClick(e){
       if (spendName) spendName.value = '';
       if (spendAmount) spendAmount.value = '';
     }
+    return;
+  }
+
+  if (action === 'pin' && itemId && itemId !== '__new__') {
+    togglePinnedItem(section, itemId);
     return;
   }
 

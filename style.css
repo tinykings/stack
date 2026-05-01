@@ -706,13 +706,39 @@ body {
 }
 
 .inline-editor--planning .actions button.planning-delete-btn {
-  flex: 0.7 1 110px;
-  min-width: 96px;
+  flex: 0 0 50px;
+  width: 50px;
+  min-width: 50px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 13px;
+  padding: 0;
   line-height: 1;
+}
+
+.inline-editor--planning .actions button.planning-delete-btn svg {
+  width: 18px;
+  height: 18px;
+  display: block;
+  fill: currentColor;
+}
+
+.inline-editor--account .actions button.account-delete-btn {
+  flex: 0 0 50px;
+  width: 50px;
+  min-width: 50px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  line-height: 1;
+}
+
+.inline-editor--account .actions button.account-delete-btn svg {
+  width: 18px;
+  height: 18px;
+  display: block;
+  fill: currentColor;
 }
 
 .inline-editor--planning .actions button.planning-delete-btn:hover {
@@ -722,6 +748,16 @@ body {
 }
 
 .inline-editor--planning .actions button.planning-delete-btn:active {
+  background: rgba(176, 80, 80, 0.18);
+}
+
+.inline-editor--account .actions button.account-delete-btn:hover {
+  background: rgba(176, 80, 80, 0.12);
+  border-color: var(--red-text);
+  color: var(--red-text);
+}
+
+.inline-editor--account .actions button.account-delete-btn:active {
   background: rgba(176, 80, 80, 0.18);
 }
 
@@ -750,10 +786,52 @@ body {
   color: #141414;
 }
 
+.pin-text-btn {
+  background: transparent;
+  border: 0;
+  color: var(--text-dim);
+  padding: 10px 8px;
+  min-height: 42px;
+  flex: 0 0 auto;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: color 0.15s ease, opacity 0.15s ease;
+}
+
+.pin-text-btn:hover {
+  color: var(--amber);
+}
+
+.pin-text-btn:active {
+  opacity: 0.7;
+}
+
+.inline-row.is-pinned {
+  border-color: rgba(200, 164, 78, 0.38);
+  background: linear-gradient(180deg, rgba(200, 164, 78, 0.12), rgba(200, 164, 78, 0.03)), var(--surface);
+}
+
+.inline-row.is-pinned .inline-row-toggle.is-pinned {
+  background: linear-gradient(180deg, rgba(200, 164, 78, 0.08), rgba(200, 164, 78, 0.02));
+}
+
+.inline-row.is-pinned .item-name,
+.inline-row.is-pinned .meta {
+  color: var(--text);
+}
+
 @media (max-width: 599px) {
   .inline-editor--planning .actions button.planning-delete-btn {
-    flex-basis: 96px;
-    width: auto;
+    flex-basis: 50px;
+    width: 50px;
+  }
+
+  .inline-editor--account .actions button.account-delete-btn {
+    flex-basis: 50px;
+    width: 50px;
   }
 
   .inline-editor--planning .spending-action-row .planning-spend-btn {
@@ -3370,6 +3448,13 @@ body.available-toast-active .hero-available {
 
 .inline-editor--account .actions button.delBtn {
   flex: 0.7 1 110px;
+}
+
+.inline-editor--planning .actions button.planning-delete-btn,
+.inline-editor--account .actions button.account-delete-btn {
+  flex: 0 0 50px;
+  width: 50px;
+  min-width: 50px;
 }
 
 .inline-editor .actions button[type="submit"],
