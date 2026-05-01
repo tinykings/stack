@@ -17,8 +17,6 @@ let modalLockCount = 0;
 let modalScrollY = 0;
 let inlineRowState = null;
 let pendingInlineRowFocus = null;
-let availableBannerToken = 0;
-let availableBannerScrollRaf = 0;
 let autofillSelection = new Set();
 let autofillSelectionInitialized = false;
 let hasRenderedAvailableOnce = false;
@@ -553,10 +551,8 @@ function renderItemSummary(section, item){
 function renderAddRow(section){
   const open = isInlineRowOpen(section, '__new__');
   const title = section === 'accounts' ? 'Add Account' : 'Add Item';
-  const showHelper = section === 'accounts'
-    ? (state.accounts || []).length === 0
-    : (state.items.planning || []).length === 0 && (state.accounts || []).length > 0;
-  const helperText = section === 'accounts' ? 'Add an account to get started' : 'Add a budget item';
+  const showHelper = section !== 'accounts' && (state.items.planning || []).length === 0 && (state.accounts || []).length > 0;
+  const helperText = 'Add a budget item';
   return `
     <div class="item inline-row inline-row--new ${open ? 'is-open' : ''}" data-inline-section="${section}" data-inline-key="__new__">
       <button type="button" class="item-content item-clickable inline-row-toggle" data-inline-toggle="1" aria-expanded="${open ? 'true' : 'false'}">
@@ -761,6 +757,8 @@ function renderAccountCards(){
   if (!accountsEl) return;
 
   const accounts = getSectionItems('accounts');
+  const hintEl = $('empty-accounts-hint');
+  if (hintEl) hintEl.hidden = accounts.length !== 0;
 
   accountsEl.innerHTML = `${accounts.map(account => renderItemSummary('accounts', account)).join('')}${renderAddRow('accounts')}`;
 }
@@ -828,7 +826,6 @@ function computeTotals(){
     availableEl.textContent = formatCurrencyWhole(available);
     availableEl.style.color = available < 0 ? 'var(--pink)' : '';
   }
-  updateAvailableBannerValue(available);
   lastAvailableAmount = available; // Update lastAvailableAmount after setting new value
   if (shouldAnimateAvailable) triggerAvailableFlip();
   hasRenderedAvailableOnce = true;
@@ -863,19 +860,8 @@ function renderFooterAction(){
   el.textContent = formatActionText(history[0]);
 }
 
-function isPageScrolledFromTop(){
-  return (window.scrollY || document.documentElement.scrollTop || 0) > 0;
-}
-
-function updateAvailableBannerValue(value){
-  const bannerValue = $('available-banner-value');
-  if (!bannerValue) return;
-  bannerValue.textContent = formatCurrencyWhole(value);
-  bannerValue.style.color = value < 0 ? 'var(--pink)' : '';
-}
-
 function triggerAvailableFlip(){
-  const panels = [q('.available-amount'), q('.available-banner-inner')].filter(Boolean);
+  const panels = [q('.available-amount')].filter(Boolean);
   panels.forEach((panel) => {
     panel.classList.remove('is-flipping');
     void panel.offsetWidth;
@@ -883,43 +869,8 @@ function triggerAvailableFlip(){
   });
 }
 
-function showAvailableBanner(value){
-  const banner = $('available-banner');
-  if (!banner) return 0;
-
-  availableBannerToken += 1;
-  updateAvailableBannerValue(value);
-  banner.classList.add('is-visible');
-  banner.setAttribute('aria-hidden', 'false');
-  return availableBannerToken;
-}
-
-function hideAvailableBanner(token){
-  if (token && token !== availableBannerToken) return;
-  const banner = $('available-banner');
-  if (!banner) return;
-
-  banner.classList.remove('is-visible');
-  banner.setAttribute('aria-hidden', 'true');
-}
-
-function syncAvailableBannerVisibility(){
-  const hero = $('app-hero');
-  const heroBottom = hero ? hero.getBoundingClientRect().bottom : 0;
-  const shouldShow = hero ? heroBottom <= 0 : isPageScrolledFromTop();
-  if (shouldShow) {
-    showAvailableBanner(lastAvailableAmount);
-  } else {
-    hideAvailableBanner();
-  }
-}
-
-function scheduleAvailableBannerVisibilitySync(){
-  if (availableBannerScrollRaf) return;
-  availableBannerScrollRaf = requestAnimationFrame(() => {
-    availableBannerScrollRaf = 0;
-    syncAvailableBannerVisibility();
-  });
+function syncScrolledState(){
+  document.body.classList.toggle('is-scrolled', (window.scrollY || document.documentElement.scrollTop || 0) > 0);
 }
 
 function centerOpenInlineRow(){
@@ -943,7 +894,6 @@ function render(){
   renderAccountCards();
   renderPlanningList(totals);
   centerOpenInlineRow();
-  syncAvailableBannerVisibility();
 }
 
 function escapeHtml(text){ return (text+'').replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;","\"":"&quot;"})[c]); }
@@ -1351,10 +1301,11 @@ function handleInlineClick(e){
 // UI wiring
 function setupUI(){
   loadLocal(); render();
+  syncScrolledState();
 
   document.addEventListener('focusin', (e) => clearAmountOnFocus(e.target));
-  window.addEventListener('scroll', scheduleAvailableBannerVisibilitySync, { passive: true });
-  window.addEventListener('resize', scheduleAvailableBannerVisibilitySync);
+  window.addEventListener('scroll', syncScrolledState, { passive: true });
+  window.addEventListener('resize', syncScrolledState);
 
   const planningList = $('planning-list');
   if (planningList) {
