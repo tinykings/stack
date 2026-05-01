@@ -2246,9 +2246,6 @@ body.detail-open .stack-meta {
   flex-direction: column;
   gap: 6px;
   padding-top: calc(env(safe-area-inset-top) + 2px);
-  position: sticky;
-  top: calc(env(safe-area-inset-top, 0px) + 10px);
-  z-index: 1100;
 }
 
 .hero-topline {
@@ -2668,15 +2665,6 @@ body.detail-open .stack-meta {
     linear-gradient(135deg, #fffdf6 0%, #fff8e7 100%);
   background-size: 36px 36px, 18px 18px, auto;
   box-shadow: var(--shadow-hard);
-  transition: width 180ms ease, padding 180ms ease, border-radius 180ms ease, box-shadow 180ms ease;
-}
-
-body.is-scrolled .app-hero {
-  width: 38%;
-  min-width: 260px;
-  padding: calc(env(safe-area-inset-top) + 8px) 10px 10px;
-  border-radius: 18px;
-  box-shadow: var(--shadow-hard-sm);
 }
 
 .hero-topline {
@@ -2699,7 +2687,6 @@ body.is-scrolled .app-hero {
   position: relative;
   overflow: visible;
   align-items: center;
-  transition: width 180ms ease, padding 180ms ease, border-radius 180ms ease, box-shadow 180ms ease;
 }
 
 .available-amount #available {
@@ -2712,20 +2699,6 @@ body.is-scrolled .app-hero {
   text-shadow: 3px 3px 0 rgba(17, 17, 17, 0.2);
   position: relative;
   display: inline-block;
-  transition: font-size 180ms ease, line-height 180ms ease;
-}
-
-body.is-scrolled .available-amount {
-  width: 100%;
-  min-width: 0;
-  padding: 7px 9px 6px;
-  border-radius: 14px;
-  box-shadow: 4px 4px 0 #111111;
-}
-
-body.is-scrolled .available-amount #available {
-  font-size: clamp(1.2rem, 4.8vw, 2.2rem);
-  line-height: 1;
 }
 
 .available-amount.is-flipping {
@@ -3615,29 +3588,12 @@ body.is-scrolled .available-amount #available {
     border-radius: 24px;
   }
 
-  body.is-scrolled .app-hero {
-    width: 56%;
-    min-width: 0;
-    padding-inline: 8px;
-    border-radius: 16px;
-  }
-
   .available-amount {
     padding: 16px 12px 10px;
   }
 
   .available-amount #available {
     font-size: clamp(2.6rem, 14vw, 4.4rem);
-  }
-
-  body.is-scrolled .available-amount {
-    width: 100%;
-    min-width: 0;
-    padding: 6px 8px 5px;
-  }
-
-  body.is-scrolled .available-amount #available {
-    font-size: clamp(1rem, 5vw, 1.7rem);
   }
 
   .summary-chip,

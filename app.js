@@ -873,10 +873,6 @@ function triggerAvailableFlip(){
   });
 }
 
-function syncScrolledState(){
-  document.body.classList.toggle('is-scrolled', (window.scrollY || document.documentElement.scrollTop || 0) > 0);
-}
-
 function centerOpenInlineRow(){
   if (!pendingInlineRowFocus) return;
   const { section, key } = pendingInlineRowFocus;
@@ -1306,11 +1302,8 @@ function handleInlineClick(e){
 // UI wiring
 function setupUI(){
   loadLocal(); render();
-  syncScrolledState();
 
   document.addEventListener('focusin', (e) => clearAmountOnFocus(e.target));
-  window.addEventListener('scroll', syncScrolledState, { passive: true });
-  window.addEventListener('resize', syncScrolledState);
 
   const planningList = $('planning-list');
   if (planningList) {
