@@ -920,14 +920,16 @@ function scrollElementToCenter(element){
   if (!element) return;
 
   const rect = element.getBoundingClientRect();
-  const viewportHeight = window.innerHeight || document.documentElement.clientHeight || 0;
+  const viewport = window.visualViewport;
+  const viewportHeight = (viewport && viewport.height) || window.innerHeight || document.documentElement.clientHeight || 0;
+  const viewportTop = (viewport && viewport.offsetTop) || 0;
   const maxScrollY = Math.max(
     0,
     (document.documentElement.scrollHeight || document.body.scrollHeight || 0) - viewportHeight
   );
   const targetTop = Math.min(
     maxScrollY,
-    Math.max(0, (window.scrollY || window.pageYOffset || 0) + rect.top - ((viewportHeight - rect.height) / 2))
+    Math.max(0, (window.scrollY || window.pageYOffset || 0) + rect.top - viewportTop - ((viewportHeight - rect.height) / 2))
   );
 
   window.scrollTo({ top: targetTop, behavior: 'smooth' });
