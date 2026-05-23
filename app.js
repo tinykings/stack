@@ -14,6 +14,7 @@ let state = {
 };
 let lastAvailableAmount = 0; // New global variable
 let isSavingToGist = false; // Flag to prevent auto-refresh during save
+let isLoadingFromGist = false; // Flag to prevent save during load
 
 // Each item now has: id, name, amount, due, spent (array of {name, amount, date})
 
@@ -103,6 +104,7 @@ function loadLocal(){
   }
 }
 function saveLocal(){
+  state._lastModified = Date.now();
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
 }
 
@@ -701,6 +703,8 @@ async function saveToGist(createNew=false, silent=false){
 }
 
 async function autosaveToGist(){
+  // Don't save while a load is in progress
+  if (isLoadingFromGist) return;
   const token = ($('gistToken') && $('gistToken').value.trim()) || localStorage.getItem(GIST_TOKEN_KEY);
   const gid = ($('gistId') && $('gistId').value.trim()) || localStorage.getItem(GIST_ID_KEY);
   if(!token || !gid) return; // silently skip
@@ -714,25 +718,29 @@ async function autosaveToGist(){
 }
 
 async function loadFromGist(silent = false){
-  const tokenEl = $('gistToken');
-  const gidEl = $('gistId');
+  // Don't load while a save is in progress
+  if (isSavingToGist) return;
 
-  let token = tokenEl ? tokenEl.value.trim() : '';
-  let gistId = gidEl ? gidEl.value.trim() : '';
+  isLoadingFromGist = true;
+  try {
+    const tokenEl = $('gistToken');
+    const gidEl = $('gistId');
 
-  // If input fields are empty, try to get from localStorage
-  if (!token) token = localStorage.getItem(GIST_TOKEN_KEY) || '';
-  if (!gistId) gistId = localStorage.getItem(GIST_ID_KEY) || '';
+    let token = tokenEl ? tokenEl.value.trim() : '';
+    let gistId = gidEl ? gidEl.value.trim() : '';
 
-  // Update input fields if values were found in localStorage and fields were empty
-  if (tokenEl && !tokenEl.value.trim() && token) tokenEl.value = token;
-  if (gidEl && !gidEl.value.trim() && gistId) gidEl.value = gistId;
+    // If input fields are empty, try to get from localStorage
+    if (!token) token = localStorage.getItem(GIST_TOKEN_KEY) || '';
+    if (!gistId) gistId = localStorage.getItem(GIST_ID_KEY) || '';
 
-  if(!gistId){ if(!silent) setStatus('Missing Gist ID', true); return; }
-  if(!token){ if(!silent) setStatus('Missing GitHub token', true); return; }
+    // Update input fields if values were found in localStorage and fields were empty
+    if (tokenEl && !tokenEl.value.trim() && token) tokenEl.value = token;
+    if (gidEl && !gidEl.value.trim() && gistId) gidEl.value = gistId;
 
-  if(!silent) setStatus('Loading from gist...');
-  try{
+    if(!gistId){ if(!silent) setStatus('Missing Gist ID', true); return; }
+    if(!token){ if(!silent) setStatus('Missing GitHub token', true); return; }
+
+    if(!silent) setStatus('Loading from gist...');
     const headers = token ? { 'Authorization': `token ${token}`, 'Accept': 'application/vnd.github+json' } : { 'Accept': 'application/vnd.github+json' };
     // Add timestamp and cache: 'no-store' to bypass browser/GitHub caching
     const res = await fetch(`https://api.github.com/gists/${gistId}?t=${Date.now()}`, { 
@@ -746,26 +754,32 @@ async function loadFromGist(silent = false){
       if(!file){ setStatus('No files found in gist', true); return; }
       const content = file.content;
       try{
-  const parsed = JSON.parse(content);
-  // remove legacy transactions from loaded data
-  state = parsed;
-  // Sync paySchedule from state to localStorage
-  if (state.paySchedule) {
-    if (state.paySchedule.frequency) {
-      localStorage.setItem(AUTOFILL_FREQ_KEY, state.paySchedule.frequency);
-    }
-    if (state.paySchedule.startDate) {
-      localStorage.setItem(AUTOFILL_START_DATE_KEY, state.paySchedule.startDate);
-    }
-  }
-  saveLocal(); render();
+        const parsed = JSON.parse(content);
+        // Don't overwrite if local state was modified more recently
+        if (state._lastModified && parsed._lastModified && parsed._lastModified < state._lastModified) {
+          return;
+        }
+        state = parsed;
+        // Sync paySchedule from state to localStorage
+        if (state.paySchedule) {
+          if (state.paySchedule.frequency) {
+            localStorage.setItem(AUTOFILL_FREQ_KEY, state.paySchedule.frequency);
+          }
+          if (state.paySchedule.startDate) {
+            localStorage.setItem(AUTOFILL_START_DATE_KEY, state.paySchedule.startDate);
+          }
+        }
+        saveLocal(); render();
         localStorage.setItem(GIST_ID_KEY, gistId); if(token) localStorage.setItem(GIST_TOKEN_KEY, token);
-        setStatus('Loaded data from gist');
+        if(!silent) setStatus('Loaded data from gist');
       }catch(e){ setStatus('Invalid JSON in gist file', true); }
     } else {
       setStatus('Gist load failed: ' + (data.message||res.statusText), true);
     }
   }catch(err){ setStatus('Network error loading gist', true); console.error(err); }
+  finally {
+    isLoadingFromGist = false;
+  }
 }
 
 function setStatus(msg, isError=false){
@@ -1444,8 +1458,8 @@ function setupAutoRefresh() {
   const MIN_REFRESH_INTERVAL = 5000; // Don't refresh more than once per 5 seconds
 
   async function autoRefreshFromGist() {
-    // Don't refresh while a save is in progress
-    if (isSavingToGist) return;
+    // Don't refresh while a save or load is in progress
+    if (isSavingToGist || isLoadingFromGist) return;
     
     const now = Date.now();
     if (now - lastRefreshTime < MIN_REFRESH_INTERVAL) return;
@@ -1484,12 +1498,14 @@ if ('serviceWorker' in navigator) {
 }
 
 // Init
+(async function init() {
   setupUI();
   setupAutoRefresh();
   setupInstallBanner();
   if (localStorage.getItem(GIST_ID_KEY) && localStorage.getItem(GIST_TOKEN_KEY)) {
-    loadFromGist(true);
+    await loadFromGist(true);
   }
+})();
 
 // PWA Install Detection
 function isPWA() {
