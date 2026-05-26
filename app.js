@@ -247,8 +247,9 @@ function renderLists(){
       if (remainingPercent < 25) progressClass = 'danger';
       else if (remainingPercent < 50) progressClass = 'warning';
       
+      const progressLabel = remainingPercent >= 50 ? 'Good progress' : remainingPercent >= 25 ? 'Some progress left' : 'Low progress';
       const progressHTML = totalBudget > 0 ? `
-        <div class="item-progress">
+        <div class="item-progress" role="progressbar" aria-valuenow="${Math.round(remainingPercent)}" aria-valuemin="0" aria-valuemax="100" aria-label="${progressLabel}">
           <div class="item-progress-bar ${progressClass}" style="width: ${remainingPercent}%"></div>
         </div>
       ` : '';
@@ -304,22 +305,22 @@ function computeTotals(){
   if (available !== currentAvailableAmount) {
     const direction = available > currentAvailableAmount ? 'up' : 'down';
     animateNumberChange(availableEl, currentAvailableAmount, available, 1000, direction);
+    availableEl.classList.add('amount-updated');
+    setTimeout(() => availableEl.classList.remove('amount-updated'), 600);
   }
-
   availableEl.textContent = '$' + available.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
   lastAvailableAmount = available; // Update lastAvailableAmount after setting new value
 }
 
 function animateNumberChange(element, startValue, endValue, duration, direction) {
   let startTime;
-  const easing = t => t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t; // Ease-in-out
-
-  const originalColor = element.style.color; // Store original color
+  const easing = t => t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
+  const rootStyle = getComputedStyle(document.documentElement);
 
   if (direction === 'up') {
-    element.style.color = '#7bc48e'; // Green for up
+    element.style.color = rootStyle.getPropertyValue('--green-text').trim() || '#7bc48e';
   } else if (direction === 'down') {
-    element.style.color = '#d47272'; // Red for down
+    element.style.color = rootStyle.getPropertyValue('--red-text').trim() || '#d47272';
   }
 
   function animate(currentTime) {
@@ -333,7 +334,7 @@ function animateNumberChange(element, startValue, endValue, duration, direction)
     if (progress < 1) {
       requestAnimationFrame(animate);
     } else {
-      element.style.color = '#c8a44e'; // Restore to amber after animation
+      element.style.color = rootStyle.getPropertyValue('--amber').trim() || '#c8a44e';
     }
   }
   requestAnimationFrame(animate);
@@ -415,11 +416,12 @@ function getSectionLabel(section){
 function showInlineError(inputEl, message) {
   const existing = inputEl.parentElement.querySelector('.inline-error');
   if (existing) existing.remove();
-  inputEl.style.borderColor = '#b05050';
+  const rootStyle = getComputedStyle(document.documentElement);
+  inputEl.style.borderColor = rootStyle.getPropertyValue('--red-text').trim() || '#b05050';
   const err = document.createElement('span');
   err.className = 'inline-error';
   err.textContent = message;
-  Object.assign(err.style, { color: '#d47272', fontSize: '12px', fontFamily: 'var(--mono)', marginTop: '4px', display: 'block' });
+  Object.assign(err.style, { color: rootStyle.getPropertyValue('--red-text').trim() || '#d47272', fontSize: '12px', fontFamily: 'var(--mono)', marginTop: '4px', display: 'block' });
   inputEl.parentElement.appendChild(err);
   inputEl.addEventListener('input', function clearErr(){
     const e = inputEl.parentElement.querySelector('.inline-error');
@@ -442,8 +444,9 @@ function showConfirmDialog(message) {
     const modal = document.createElement('div');
     modal.className = 'modal';
     modal.style.maxWidth = '380px';
+    const rootStyle = getComputedStyle(document.documentElement);
     modal.innerHTML = `
-      <p style="margin:0 0 20px;font-size:15px;line-height:1.5;color:#d4d0c8">${escapeHtml(message)}</p>
+      <p style="margin:0 0 20px;font-size:15px;line-height:1.5;color:${rootStyle.getPropertyValue('--text').trim() || '#d4d0c8'}">${escapeHtml(message)}</p>
       <div class="actions">
         <button id="_confirm_no" class="confirm-cancel">Cancel</button>
         <button id="_confirm_yes" class="confirm-ok">OK</button>
@@ -459,6 +462,7 @@ function showConfirmDialog(message) {
     modal.querySelector('#_confirm_yes').addEventListener('click', yes);
     overlay.addEventListener('click', e => { if (e.target === overlay) no(); });
     modal.addEventListener('keydown', e => { if (e.key === 'Escape') no(); if (e.key === 'Enter') yes(); });
+    trapFocus(modal);
     setTimeout(() => modal.querySelector('#_confirm_yes').focus(), 20);
   });
 }
@@ -479,15 +483,21 @@ function showUndoToast() {
   if (existing) existing.remove();
   const toast = document.createElement('div');
   toast.id = 'undo-toast';
+  const rootStyle = getComputedStyle(document.documentElement);
+  const undoBg = rootStyle.getPropertyValue('--card').trim() || '#1a1a1a';
+  const undoBorder = rootStyle.getPropertyValue('--border').trim() || '#383838';
+  const undoText = rootStyle.getPropertyValue('--text').trim() || '#d4d0c8';
+  const undoBtnBg = rootStyle.getPropertyValue('--amber').trim() || '#c8a44e';
+  const undoBtnColor = rootStyle.getPropertyValue('--bg').trim() || '#141414';
   Object.assign(toast.style, {
     position: 'fixed', bottom: '80px', left: '50%', transform: 'translateX(-50%)',
-    zIndex: '10000', background: '#252525', border: '1px solid #383838',
+    zIndex: '10000', background: undoBg, border: `1px solid ${undoBorder}`,
     borderRadius: '6px', padding: '12px 16px', display: 'flex',
-    alignItems: 'center', gap: '16px', fontSize: '14px', color: '#d4d0c8',
+    alignItems: 'center', gap: '16px', fontSize: '14px', color: undoText,
     boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
     animation: 'slideUp 0.2s cubic-bezier(0.16,1,0.3,1)'
   });
-  toast.innerHTML = `<span>${escapeHtml(undoDescription)}</span><button id="_undo_btn" style="background:#c8a44e;color:#141414;border:none;border-radius:4px;padding:8px 16px;font-weight:600;cursor:pointer;white-space:nowrap">Undo</button>`;
+  toast.innerHTML = `<span>${escapeHtml(undoDescription)}</span><button id="_undo_btn" style="background:${undoBtnBg};color:${undoBtnColor};border:none;border-radius:4px;padding:8px 16px;font-weight:600;cursor:pointer;white-space:nowrap">Undo</button><div class="undo-timer"></div>`;
   document.body.appendChild(toast);
 
   document.getElementById('_undo_btn').addEventListener('click', () => {
@@ -880,8 +890,24 @@ async function loadFromGist(silent = false){
   }
 }
 
+function trapFocus(modalEl) {
+  const focusable = modalEl.querySelectorAll('button, input, select, textarea, [tabindex]:not([tabindex="-1"])');
+  if (!focusable.length) return;
+  const first = focusable[0];
+  const last = focusable[focusable.length - 1];
+  modalEl.addEventListener('keydown', function(e) {
+    if (e.key === 'Tab') {
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    }
+  });
+}
+
 function setStatus(msg, isError=false){
-  const s = $('status'); s.textContent = msg; s.style.color = isError ? '#ffb4b4' : '#cfe9ff';
+  const rootStyle = getComputedStyle(document.documentElement);
+  const s = $('status');
+  s.textContent = msg;
+  s.style.color = isError ? (rootStyle.getPropertyValue('--red-bg').trim() || '#ffb4b4') : (rootStyle.getPropertyValue('--info-bg').trim() || '#cfe9ff');
 }
 
 // Show a modal/form for adding spending to an item
@@ -917,7 +943,9 @@ function showSpendingForm(section, itemId){
 
   modal.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') { e.preventDefault(); document.getElementById('_spend_ok').click(); }
+    if (e.key === 'Escape') { e.preventDefault(); cleanup(); }
   });
+  trapFocus(modal);
 
   // Select all on focus for amount field
   document.getElementById('_spend_amt').addEventListener('focus', (e) => e.target.select());
@@ -1020,7 +1048,9 @@ function showEditAmountForm(section, itemId, currentAmount) {
 
   modal.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') { e.preventDefault(); document.getElementById('_edit_amount_ok').click(); }
+    if (e.key === 'Escape') { e.preventDefault(); cleanup(); }
   });
+  trapFocus(modal);
 
   // Select all on focus for amount field
   document.getElementById('_edit_amount').addEventListener('focus', (e) => e.target.select());
@@ -1140,7 +1170,9 @@ function showItemForm(section, itemId = null) {
 
   modal.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') { e.preventDefault(); document.getElementById('_item_ok').click(); }
+    if (e.key === 'Escape') { e.preventDefault(); cleanup(); }
   });
+  trapFocus(modal);
 
   // Clear amount fields on focus for easier editing
   document.getElementById('_item_amount').addEventListener('focus', (e) => e.target.select());

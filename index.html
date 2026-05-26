@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="theme-color" content="#141414" />
   <meta name="description" content="simple budget app" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -56,11 +56,7 @@
   </div>
 
   <main class="container">
-    <header class="top">
-      <section class="balances">
-        <div id="accountsList" class="accounts-section"></div>
-      </section>
-    </header>
+    <h1 class="app-title">Stack</h1>
 
     <!-- per-section add buttons are in each list header -->
 
@@ -70,7 +66,7 @@
         <div class="list-items" data-section="accounts"></div>
       </div>
       <div class="list" id="budgetList">
-        <h2>Budget <span class="section-total" id="total-budget">$0.00</span> <button class="addItemSectionBtn" data-section="budget" aria-label="+budget">＋</button></h2>
+        <h2>Budget <span class="section-total" id="total-budget">$0.00</span>       <button class="addItemSectionBtn" data-section="budget" aria-label="Add budget item">＋</button></h2>
         <div class="list-items" data-section="budget"></div>
       </div>
       <div class="list" id="billsList">
