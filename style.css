@@ -1387,6 +1387,22 @@ body {
   color: var(--text);
 }
 
+/* ---- Gist Loading State ---- */
+
+.gist-controls.gist-loading .gist-buttons button {
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+.gist-controls.gist-loading #status {
+  animation: loadingPulse 1.2s ease-in-out infinite;
+}
+
+@keyframes loadingPulse {
+  0%, 100% { opacity: 0.45; }
+  50% { opacity: 1; }
+}
+
 /* ---- Animation: Button hover/active feedback ---- */
 
 .icon-action-btn {

@@ -785,6 +785,12 @@ function setupUI(){
 }
 
 // Gist API
+function setGistLoading(loading) {
+  const btns = document.querySelectorAll('#saveGist, #loadGist');
+  btns.forEach(btn => { btn.disabled = loading; });
+  document.querySelector('.gist-controls').classList.toggle('gist-loading', loading);
+}
+
 async function saveToGist(createNew=false, silent=false){
   const tokenEl = $('gistToken'); const gidEl = $('gistId');
   const token = tokenEl ? tokenEl.value.trim() : (localStorage.getItem(GIST_TOKEN_KEY) || '');
@@ -793,7 +799,8 @@ async function saveToGist(createNew=false, silent=false){
   if(!gistId && !createNew){ if(!silent) setStatus('Missing Gist ID', true); return; }
   const payload = {"budget-data.json": {content: JSON.stringify(state, null, 2)}};
   const headers = { 'Authorization': `token ${token}`, 'Accept': 'application/vnd.github+json' };
-  if(!silent) setStatus('Saving to gist...');
+  if(!silent) setGistLoading(true);
+  if(!silent) setStatus('Saving to gist');
   try{
     let res;
     if(createNew || !gistId){
@@ -817,6 +824,7 @@ async function saveToGist(createNew=false, silent=false){
       console.error('Gist error', data);
     }
   }catch(err){ if(!silent) setStatus('Network error saving gist', true); console.error(err); }
+  finally { if(!silent) setGistLoading(false); }
 }
 
 async function autosaveToGist(){
@@ -857,7 +865,8 @@ async function loadFromGist(silent = false){
     if(!gistId){ if(!silent) setStatus('Missing Gist ID', true); return; }
     if(!token){ if(!silent) setStatus('Missing GitHub token', true); return; }
 
-    if(!silent) setStatus('Loading from gist...');
+    if(!silent) setGistLoading(true);
+    if(!silent) setStatus('Loading from gist');
     const headers = token ? { 'Authorization': `token ${token}`, 'Accept': 'application/vnd.github+json' } : { 'Accept': 'application/vnd.github+json' };
     // Add timestamp and cache: 'no-store' to bypass browser/GitHub caching
     const res = await fetch(`https://api.github.com/gists/${gistId}?t=${Date.now()}`, { 
@@ -896,6 +905,7 @@ async function loadFromGist(silent = false){
   }catch(err){ setStatus('Network error loading gist', true); console.error(err); }
   finally {
     isLoadingFromGist = false;
+    if(!silent) setGistLoading(false);
   }
 }
 
