@@ -1,0 +1,130 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-05-26T00:00:00.000Z",
+  "title": "Design System: Stack",
+  "extensions": {
+    "colorMeta": {
+      "bg": { "role": "neutral", "displayName": "Warm Black", "canonical": "oklch(0.13 0.008 70)", "tonalRamp": ["oklch(0.06 0.005 70)", "oklch(0.10 0.006 70)", "oklch(0.13 0.008 70)", "oklch(0.17 0.008 70)", "oklch(0.21 0.008 70)", "oklch(0.26 0.008 70)", "oklch(0.32 0.007 70)", "oklch(0.40 0.006 70)"] },
+      "amber": { "role": "primary", "displayName": "Control-Room Amber", "canonical": "oklch(0.68 0.12 80)", "tonalRamp": ["oklch(0.25 0.03 80)", "oklch(0.35 0.06 80)", "oklch(0.45 0.08 80)", "oklch(0.55 0.10 80)", "oklch(0.65 0.12 80)", "oklch(0.72 0.10 80)", "oklch(0.80 0.07 80)", "oklch(0.88 0.04 80)"] },
+      "green": { "role": "semantic", "displayName": "Positive Green", "canonical": "oklch(0.60 0.10 150)", "tonalRamp": ["oklch(0.25 0.03 150)", "oklch(0.35 0.05 150)", "oklch(0.45 0.07 150)", "oklch(0.55 0.09 150)", "oklch(0.65 0.10 150)", "oklch(0.72 0.08 150)", "oklch(0.80 0.05 150)", "oklch(0.88 0.03 150)"] },
+      "red": { "role": "semantic", "displayName": "Negative Red", "canonical": "oklch(0.50 0.14 30)", "tonalRamp": ["oklch(0.20 0.04 30)", "oklch(0.30 0.07 30)", "oklch(0.40 0.10 30)", "oklch(0.50 0.14 30)", "oklch(0.58 0.12 30)", "oklch(0.66 0.10 30)", "oklch(0.75 0.07 30)", "oklch(0.85 0.04 30)"] }
+    },
+    "typographyMeta": {
+      "body": { "displayName": "DM Sans", "purpose": "All UI copy, labels, headers, and body text." },
+      "mono": { "displayName": "JetBrains Mono", "purpose": "All numeric values: amounts, percentages, dates, ordinals." },
+      "label": { "displayName": "DM Sans Uppercase", "purpose": "Section headers, button labels, form labels." }
+    },
+    "shadows": [
+      { "name": "modal-umbra", "value": "0 20px 60px rgba(0,0,0,0.5)", "purpose": "Modal card shadow. The only shadow in the system." }
+    ],
+    "motion": [
+      { "name": "ease-out-expo", "value": "cubic-bezier(0.16, 1, 0.3, 1)", "purpose": "Modal entrances, slide-down/slide-up animations." },
+      { "name": "ease-standard", "value": "cubic-bezier(0.4, 0, 0.2, 1)", "purpose": "Progress bar width transitions." },
+      { "name": "ease-out-quart", "value": "cubic-bezier(0.25, 0.46, 0.45, 0.94)", "purpose": "Hover and focus transitions on interactive elements." },
+      { "name": "duration-instant", "value": "100ms", "purpose": "Background color transitions on item hover." },
+      { "name": "duration-fast", "value": "150ms", "purpose": "Border and color transitions on buttons and inputs." },
+      { "name": "duration-modal", "value": "200ms", "purpose": "Modal overlay and card entrance." }
+    ],
+    "breakpoints": [
+      { "name": "tablet", "value": "768px" },
+      { "name": "desktop", "value": "1024px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Primary action button. Amber fill, dark text, uppercase label.",
+      "html": "<button class=\"ds-btn-primary\">Add Budget</button>",
+      "css": ".ds-btn-primary { background: #c8a44e; color: #141414; border: 1px solid #c8a44e; padding: 10px 20px; min-height: 42px; border-radius: 4px; font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif; font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; cursor: pointer; transition: background 0.15s cubic-bezier(0.25, 0.46, 0.45, 0.94), opacity 0.15s; } .ds-btn-primary:hover { background: #a68a3a; border-color: #a68a3a; } .ds-btn-primary:active { opacity: 0.8; }"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Secondary/cancel action. Surface background, border stroke.",
+      "html": "<button class=\"ds-btn-secondary\">Cancel</button>",
+      "css": ".ds-btn-secondary { background: #1e1e1e; color: #8a8780; border: 1px solid #2e2e2e; padding: 10px 20px; min-height: 42px; border-radius: 4px; font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.15s cubic-bezier(0.25, 0.46, 0.45, 0.94); } .ds-btn-secondary:hover { border-color: #383838; color: #d4d0c8; } .ds-btn-secondary:active { background: #252525; }"
+    },
+    {
+      "name": "List Item",
+      "kind": "card",
+      "refersTo": "card-item",
+      "description": "Budget/bill/goal list item card.",
+      "html": "<div class=\"ds-item\"><div class=\"ds-item-info\"><span class=\"ds-item-name\">Groceries</span><span class=\"ds-item-amount ds-positive\">$120.00</span></div><div class=\"ds-item-meta\"><span class=\"ds-meta\">15th \u2022 $200.00 \u2022 Spend (-$80.00)</span></div><div class=\"ds-item-progress\"><div class=\"ds-item-progress-bar ds-warning\" style=\"width: 60%\"></div></div></div>",
+      "css": ".ds-item { display: flex; flex-direction: column; gap: 4px; padding: 10px 12px; border-radius: 4px; background: #1e1e1e; margin-bottom: 6px; border: 1px solid transparent; transition: border-color 0.1s; } .ds-item:hover { border-color: #2e2e2e; } .ds-item-info { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; } .ds-item-name { font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif; font-size: 15px; font-weight: 500; color: #d4d0c8; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .ds-item-amount { font-family: 'JetBrains Mono', 'SF Mono', monospace; font-size: 14px; font-weight: 600; letter-spacing: -0.03em; white-space: nowrap; } .ds-positive { color: #7bc48e; } .ds-item-meta { width: 100%; } .ds-meta { font-family: 'JetBrains Mono', 'SF Mono', monospace; font-size: 12px; color: #5c5a55; letter-spacing: -0.01em; } .ds-item-progress { width: 100%; height: 2px; background: #2e2e2e; border-radius: 1px; overflow: hidden; margin-top: 4px; } .ds-item-progress-bar { height: 100%; border-radius: 1px; transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1); } .ds-warning { background: #b89940; }"
+    },
+    {
+      "name": "Text Input",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Text/number input field.",
+      "html": "<div style=\"display:flex;flex-direction:column;gap:6px;width:280px\"><label style=\"font-family:'DM Sans',sans-serif;font-size:12px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:#5c5a55\">Name</label><input class=\"ds-input\" type=\"text\" placeholder=\"e.g. Groceries\"></div>",
+      "css": ".ds-input { width: 100%; padding: 10px 12px; border-radius: 4px; border: 1px solid #2e2e2e; background: #1e1e1e; color: #d4d0c8; font-size: 15px; font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif; min-height: 42px; transition: border-color 0.15s; } .ds-input:focus { outline: none; border-color: #a68a3a; box-shadow: 0 0 0 1px rgba(200, 164, 78, 0.08); }"
+    },
+    {
+      "name": "Section Card",
+      "kind": "card",
+      "refersTo": "card-section",
+      "description": "Column section card containing a category (Budget, Bills, etc.).",
+      "html": "<div class=\"ds-section\"><h2 class=\"ds-section-title\">Budget <span class=\"ds-section-total\">$450.00</span><button class=\"ds-section-add\">+</button></h2><div class=\"ds-section-items\"><div class=\"ds-item-placeholder\">--</div></div></div>",
+      "css": ".ds-section { background: #1a1a1a; padding: 14px; border-radius: 6px; border: 1px solid #2e2e2e; } .ds-section-title { margin: 0 0 14px 0; display: flex; align-items: baseline; justify-content: space-between; font-size: 12px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #5c5a55; padding-bottom: 10px; border-bottom: 1px solid #2e2e2e; } .ds-section-total { font-family: 'JetBrains Mono', 'SF Mono', monospace; font-size: 13px; font-weight: 500; color: #8a8780; margin-left: auto; margin-right: 10px; letter-spacing: -0.02em; } .ds-section-add { background: transparent; border: 1px solid #383838; color: #5c5a55; width: 26px; height: 26px; border-radius: 4px; cursor: pointer; font-size: 15px; display: flex; align-items: center; justify-content: center; transition: color 0.15s, border-color 0.15s; } .ds-section-add:hover { color: #c8a44e; border-color: #a68a3a; } .ds-item-placeholder { text-align: center; color: #5c5a55; font-size: 14px; padding: 16px; opacity: 0.4; }"
+    },
+    {
+      "name": "Footer Bar",
+      "kind": "custom",
+      "refersTo": "footer-bar",
+      "description": "Fixed bottom bar with available amount and action buttons.",
+      "html": "<div class=\"ds-footer\"><div class=\"ds-footer-left\"><span class=\"ds-available-label\">Available</span><span class=\"ds-available-amount\">$2,450.00</span></div><div class=\"ds-footer-right\"><button class=\"ds-footer-btn\" title=\"Auto Fill\">\u26a1</button><button class=\"ds-footer-btn\" title=\"Settings\">\u2699\ufe0f</button></div></div>",
+      "css": ".ds-footer { display: flex; justify-content: space-between; align-items: center; padding: 10px 16px; background: #1a1a1a; border-top: 1px solid #2e2e2e; max-width: 400px; } .ds-footer-left { display: flex; flex-direction: column; } .ds-available-label { font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif; font-size: 12px; color: #5c5a55; text-transform: uppercase; letter-spacing: 0.1em; font-weight: 600; } .ds-available-amount { font-family: 'JetBrains Mono', 'SF Mono', monospace; font-weight: 700; font-size: 24px; color: #c8a44e; line-height: 1.1; letter-spacing: -0.03em; } .ds-footer-right { display: flex; align-items: center; gap: 6px; } .ds-footer-btn { border: 1px solid #2e2e2e; background: transparent; color: #8a8780; font-size: 16px; border-radius: 4px; padding: 10px; min-width: 42px; min-height: 42px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.15s; } .ds-footer-btn:hover { border-color: #383838; color: #d4d0c8; } .ds-footer-btn:active { background: #252525; }"
+    },
+    {
+      "name": "Modal Dialog",
+      "kind": "custom",
+      "refersTo": "modal",
+      "description": "Overlay modal for add/edit/spend forms.",
+      "html": "<div style=\"display:flex;align-items:center;justify-content:center;width:360px;height:260px;background:rgba(0,0,0,0.65);border-radius:8px;padding:20px\"><div class=\"ds-modal\"><h3 class=\"ds-modal-title\">Edit Budget</h3><div style=\"display:flex;flex-direction:column;gap:14px\"><label style=\"font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:#5c5a55;display:flex;flex-direction:column;gap:6px\">Name<input class=\"ds-input\" type=\"text\" value=\"Groceries\"></label><label style=\"font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:#5c5a55;display:flex;flex-direction:column;gap:6px\">Amount<input class=\"ds-input\" type=\"text\" value=\"200.00\"></label></div></div></div>",
+      "css": ".ds-modal { background: #1a1a1a; padding: 20px; border-radius: 6px; border: 1px solid #2e2e2e; width: 100%; max-width: 460px; box-shadow: 0 20px 60px rgba(0,0,0,0.5); color: #d4d0c8; } .ds-modal-title { margin: 0 0 18px 0; font-size: 16px; font-weight: 600; letter-spacing: -0.01em; color: #d4d0c8; } .ds-input { width: 100%; padding: 10px 12px; border-radius: 4px; border: 1px solid #2e2e2e; background: #1e1e1e; color: #d4d0c8; font-size: 15px; font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif; min-height: 42px; transition: border-color 0.15s; box-sizing: border-box; } .ds-input:focus { outline: none; border-color: #a68a3a; box-shadow: 0 0 0 1px rgba(200, 164, 78, 0.08); }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Control Room",
+    "overview": "An operational dashboard for personal finance. Warm blacks and amber data recall industrial control panels \u2014 glowing dial indicators on dark backgrounds, purposeful illumination where attention is needed. Every surface recedes so the numbers lead.\n\nThe system is flat by default: depth comes from tonal layering (background \u2192 card \u2192 surface \u2192 surface-up), not shadows. Cards and containers are distinguished by subtle borders and background shifts. The one shadow in the system belongs to modals, pulling the user's focus to an overlay action.",
+    "keyCharacteristics": [
+      "Dark warm palette with amber primary: utility-brewed, not corporate-cool",
+      "Typography hierarchy is the layout: one typeface (DM Sans) for structure, one (JetBrains Mono) for data",
+      "Interactive elements are tactile and confident: amber glow on hover, visible press states, clear feedback",
+      "The available amount is the anchor element \u2014 the answer to 'what can I spend?'",
+      "No charts, no gauges, no data viz flourishes"
+    ],
+    "rules": [
+      { "name": "The One Voice Rule", "body": "Amber is the only accent. Green, red, yellow, and blue are semantic (positive / negative / warning / action) \u2014 never decorative. If a color can't be described as 'signaling X', it doesn't belong.", "section": "colors" },
+      { "name": "The Surface Stack Rule", "body": "Four neutral steps define depth: bg (farthest) \u2192 card \u2192 surface \u2192 surface-up (closest). No shadows needed. This stack is the elevation system.", "section": "colors" },
+      { "name": "The Mono-for-Data Rule", "body": "All numeric values render in JetBrains Mono. Not just financial figures \u2014 percentages, dates in display, ordinal days. If it's a number, it's mono.", "section": "typography" },
+      { "name": "The Flat-by-Default Rule", "body": "Surfaces are flat at rest. The surface stack handles depth. The shadow on modals is the exception that proves the rule \u2014 use it sparingly enough that it still feels like an exception.", "section": "elevation" }
+    ],
+    "dos": [
+      "Use tonal layering for depth. Four steps (bg \u2192 card \u2192 surface \u2192 surface-up) are enough.",
+      "Make interactive elements visible on hover \u2014 amber border glow or surface-up background, clearly scoped.",
+      "Set all monetary values in JetBrains Mono with consistent -0.03em tracking.",
+      "Use progress bars as the only data indicator. One bar per item, 2px tall.",
+      "Keep the available amount in the footer at 24px amber \u2014 it's the primary answer the user came for.",
+      "Use animateNumberChange with color flash (green for up, red for down) as the single animated feedback.",
+      "Use ease-out-quart / cubic-bezier(0.16, 1, 0.3, 1) for motion. No bounce, no elastic."
+    ],
+    "donts": [
+      "Don't use SaaS-cream fintech aesthetics. No rounded cards with gradients, no hero-metric templates, no onboarding wizards.",
+      "Don't use dashboard treatments: no gauges, sparklines, charts, data viz flourishes, or 'insights' panels.",
+      "Don't use Notion-style design: no dot-grid backgrounds, pastel accents, or playful illustration.",
+      "Don't use #000 or #fff. Every neutral is tinted warm.",
+      "Don't use em dashes ever. Commas, colons, semicolons, periods, or parentheses only.",
+      "Don't add side-stripe borders. No border-left >1px colored accent on cards, items, or callouts.",
+      "Don't use gradient text (background-clip: text with gradient). One solid color per text element.",
+      "Don't use glassmorphism as a default. No decorative backdrop-blur.",
+      "Don't animate CSS layout properties (width, height, position, margin, padding, gap, grid).",
+      "Don't wrap everything in a container. Most things don't need one.",
+      "Don't nest cards. One container layer per surface."
+    ]
+  }
+}

@@ -411,6 +411,105 @@ function getSectionLabel(section){
   return labels[section] || section;
 }
 
+// Inline error helpers
+function showInlineError(inputEl, message) {
+  const existing = inputEl.parentElement.querySelector('.inline-error');
+  if (existing) existing.remove();
+  inputEl.style.borderColor = '#b05050';
+  const err = document.createElement('span');
+  err.className = 'inline-error';
+  err.textContent = message;
+  Object.assign(err.style, { color: '#d47272', fontSize: '12px', fontFamily: 'var(--mono)', marginTop: '4px', display: 'block' });
+  inputEl.parentElement.appendChild(err);
+  inputEl.addEventListener('input', function clearErr(){
+    const e = inputEl.parentElement.querySelector('.inline-error');
+    if (e) e.remove();
+    inputEl.style.borderColor = '';
+  }, { once: true });
+}
+
+function clearInlineErrors(modalEl) {
+  modalEl.querySelectorAll('.inline-error').forEach(e => e.remove());
+  modalEl.querySelectorAll('input, select').forEach(el => el.style.borderColor = '');
+}
+
+// Custom confirm dialog
+function showConfirmDialog(message) {
+  return new Promise(resolve => {
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.style.alignItems = 'center';
+    const modal = document.createElement('div');
+    modal.className = 'modal';
+    modal.style.maxWidth = '380px';
+    modal.innerHTML = `
+      <p style="margin:0 0 20px;font-size:15px;line-height:1.5;color:#d4d0c8">${escapeHtml(message)}</p>
+      <div class="actions">
+        <button id="_confirm_no" class="confirm-cancel">Cancel</button>
+        <button id="_confirm_yes" class="confirm-ok">OK</button>
+      </div>`;
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+
+    const cleanup = () => overlay.remove();
+    const no = () => { cleanup(); resolve(false); };
+    const yes = () => { cleanup(); resolve(true); };
+
+    modal.querySelector('#_confirm_no').addEventListener('click', no);
+    modal.querySelector('#_confirm_yes').addEventListener('click', yes);
+    overlay.addEventListener('click', e => { if (e.target === overlay) no(); });
+    modal.addEventListener('keydown', e => { if (e.key === 'Escape') no(); if (e.key === 'Enter') yes(); });
+    setTimeout(() => modal.querySelector('#_confirm_yes').focus(), 20);
+  });
+}
+
+// Undo mechanism
+let undoSnapshot = null;
+let undoDescription = '';
+let undoTimeout = null;
+
+function takeUndoSnapshot(description) {
+  undoSnapshot = JSON.stringify(state);
+  undoDescription = description;
+  if (undoTimeout) clearTimeout(undoTimeout);
+}
+
+function showUndoToast() {
+  const existing = document.getElementById('undo-toast');
+  if (existing) existing.remove();
+  const toast = document.createElement('div');
+  toast.id = 'undo-toast';
+  Object.assign(toast.style, {
+    position: 'fixed', bottom: '80px', left: '50%', transform: 'translateX(-50%)',
+    zIndex: '10000', background: '#252525', border: '1px solid #383838',
+    borderRadius: '6px', padding: '12px 16px', display: 'flex',
+    alignItems: 'center', gap: '16px', fontSize: '14px', color: '#d4d0c8',
+    boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
+    animation: 'slideUp 0.2s cubic-bezier(0.16,1,0.3,1)'
+  });
+  toast.innerHTML = `<span>${escapeHtml(undoDescription)}</span><button id="_undo_btn" style="background:#c8a44e;color:#141414;border:none;border-radius:4px;padding:8px 16px;font-weight:600;cursor:pointer;white-space:nowrap">Undo</button>`;
+  document.body.appendChild(toast);
+
+  document.getElementById('_undo_btn').addEventListener('click', () => {
+    if (undoSnapshot) {
+      state = JSON.parse(undoSnapshot);
+      undoSnapshot = null;
+      if (undoTimeout) clearTimeout(undoTimeout);
+      saveLocal(); render(); autosaveToGist();
+    }
+    toast.remove();
+  });
+}
+
+function scheduleUndoClear() {
+  if (undoTimeout) clearTimeout(undoTimeout);
+  undoTimeout = setTimeout(() => {
+    undoSnapshot = null;
+    const toast = document.getElementById('undo-toast');
+    if (toast) toast.remove();
+  }, 6000);
+}
+
 // Actions
 function addItem({name,amount,neededAmount,due,section,enableSpending}){
   if(section === 'accounts'){
@@ -610,7 +709,7 @@ function setupUI(){
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
       } catch (err) {
-        alert('Export failed: ' + err.message);
+        setStatus('Export failed: ' + err.message, true);
       }
     });
   }
@@ -637,27 +736,26 @@ function setupUI(){
             throw new Error('Invalid backup file format');
           }
 
-          if (confirm('This will replace all your current data with the imported backup. Are you sure?')) {
-            // Merge imported data into state
+          (async () => {
+            const confirmed = await showConfirmDialog('This will replace all your current data with the imported backup. Are you sure?');
+            if (!confirmed) return;
+            takeUndoSnapshot('Data imported');
             Object.assign(state, importedData);
             saveLocal();
             render();
-            alert('Data imported successfully!');
-            
-            // Close the settings modal
+            setStatus('Data imported successfully!');
             const gistModal = $('gist-modal');
             if (gistModal) gistModal.style.display = 'none';
-          }
+          })();
         } catch (err) {
-          alert('Import failed: ' + err.message);
+          setStatus('Import failed: ' + err.message, true);
         }
         
-        // Reset file input so same file can be selected again
         importFile.value = '';
       };
 
       reader.onerror = () => {
-        alert('Failed to read file');
+        setStatus('Failed to read file', true);
         importFile.value = '';
       };
 
@@ -844,8 +942,9 @@ function showSpendingForm(section, itemId){
     const spendAmount = spendAmtValue === '' ? 0 : parseFloat(spendAmtValue);
     const chargeAccountId = document.getElementById('_spend_account').value.trim();
     
-    if(!spendName){ alert('Enter a name for the spend'); return; }
-    if(spendAmount <= 0){ alert('Enter a valid amount greater than 0'); return; }
+    clearInlineErrors(modal);
+    if(!spendName){ showInlineError(document.getElementById('_spend_name'), 'Enter a name for the spend'); return; }
+    if(spendAmount <= 0){ showInlineError(document.getElementById('_spend_amt'), 'Enter a valid amount greater than 0'); return; }
 
     // record spent on the item
     addSpending(section, itemId, spendName, spendAmount);
@@ -932,23 +1031,20 @@ function showEditAmountForm(section, itemId, currentAmount) {
   });
 
   document.getElementById('_edit_amount_ok').addEventListener('click', () => {
+    clearInlineErrors(modal);
     const amountValue = document.getElementById('_edit_amount').value.trim();
     const newAmount = amountValue === '' ? 0 : parseFloat(amountValue);
 
     if (newAmount < 0) {
-      alert('Amount cannot be negative');
+      showInlineError(document.getElementById('_edit_amount'), 'Amount cannot be negative');
       return;
     }
 
-    if (['budget', 'bills', 'goals'].includes(section)) {
-      if (confirm('This will clear the transaction history for the item and start with the new amount. Are you sure?')) {
-        updateItemAmountAndResetSpent(section, itemId, newAmount);
-        cleanup();
-      }
-    } else {
-      updateItemAmountAndResetSpent(section, itemId, newAmount);
-      cleanup();
-    }
+    takeUndoSnapshot('Amount changed');
+    updateItemAmountAndResetSpent(section, itemId, newAmount);
+    cleanup();
+    showUndoToast();
+    scheduleUndoClear();
   });
 }
 function showItemForm(section, itemId = null) {
@@ -1073,10 +1169,11 @@ function showItemForm(section, itemId = null) {
     }
 
     document.getElementById('_item_delete').addEventListener('click', async () => {
-      if (confirm('Remove item?')) {
-        await removeItem(section, itemId);
-        cleanup();
-      }
+      takeUndoSnapshot('Item deleted');
+      await removeItem(section, itemId);
+      cleanup();
+      showUndoToast();
+      scheduleUndoClear();
     });
 
     // Handle delete spend item buttons
@@ -1084,18 +1181,15 @@ function showItemForm(section, itemId = null) {
       btn.addEventListener('click', async (e) => {
         e.preventDefault();
         const index = parseInt(btn.dataset.index);
-        if (confirm('Delete this spend entry?')) {
-          // Remove the spend item from the item's spent array
-          if (item.spent && item.spent[index]) {
-            item.spent.splice(index, 1);
-            saveLocal();
-            render(); // Update main UI
-            // Wait for gist save to complete
-            await autosaveToGist();
-            // Close the form
-            cleanup();
-            window.location.reload();
-          }
+        if (item.spent && item.spent[index]) {
+          takeUndoSnapshot('Spend deleted');
+          item.spent.splice(index, 1);
+          saveLocal();
+          render();
+          await autosaveToGist();
+          cleanup();
+          showUndoToast();
+          scheduleUndoClear();
         }
       });
     });
@@ -1109,8 +1203,9 @@ function showItemForm(section, itemId = null) {
     const neededAmountValue = section !== 'accounts' ? document.getElementById('_item_needed_amount').value.trim() : '';
     const neededAmount = section !== 'accounts' ? (neededAmountValue === '' ? 0 : parseFloat(neededAmountValue)) : undefined;
 
+    clearInlineErrors(modal);
     if (!name) {
-      alert('Enter a name');
+      showInlineError(document.getElementById('_item_name'), 'Enter a name');
       return;
     }
 
@@ -1122,7 +1217,7 @@ function showItemForm(section, itemId = null) {
     } else if (section === 'bills') {
       const day = parseInt(document.getElementById('_item_due').value);
       if (isNaN(day) || day < 1 || day > 31) {
-        alert('Enter valid day 1-31');
+        showInlineError(document.getElementById('_item_due'), 'Enter a valid day 1-31');
         return;
       }
       due = { type: 'day', value: day };
