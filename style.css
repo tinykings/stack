@@ -195,7 +195,7 @@ body.modal-open {
   font-family: var(--mono);
   font-size: 12px;
   color: var(--text-secondary);
-  padding: 8px 0;
+  padding: var(--space-sm) 0;
   border-bottom: 1px solid var(--border);
   letter-spacing: -0.01em;
 }
@@ -215,7 +215,6 @@ body.modal-open {
   border-radius: var(--radius);
   background: var(--surface);
   margin-bottom: var(--space-sm);
-  transition: background 0.1s, border-color 0.15s;
   position: relative;
   overflow: hidden;
   border: 1px solid transparent;
@@ -239,7 +238,7 @@ body.modal-open {
   flex-wrap: nowrap;
   align-items: baseline;
   justify-content: space-between;
-  gap: 8px;
+  gap: var(--space-sm);
 }
 
 .item .item-name {
@@ -263,7 +262,7 @@ body.modal-open {
   width: 100%;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-sm);
 }
 
 .item .meta {
@@ -612,13 +611,13 @@ body.modal-open {
 }
 
 .gist-controls input:focus {
-  outline: none;
   border-color: var(--amber-dim);
+  box-shadow: 0 0 0 1px var(--amber-glow);
 }
 
 .gist-buttons {
   display: flex;
-  gap: 8px;
+  gap: var(--space-sm);
 }
 
 .gist-buttons button {
@@ -752,12 +751,12 @@ body.modal-open {
 /* ---- Install App Section ---- */
 
 .install-app-section {
-  margin-top: 16px;
-  padding-top: 16px;
+  margin-top: var(--space-lg);
+  padding-top: var(--space-lg);
   border-top: 1px solid var(--border);
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--space-sm);
 }
 
 .install-app-section small {
@@ -1037,19 +1036,19 @@ body.modal-open {
 .install-instructions {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  margin: 16px 0;
+  gap: var(--space-md);
+  margin: var(--space-lg) 0;
 }
 
 .install-method {
   background: var(--surface);
   border-radius: var(--radius);
-  padding: 12px;
+  padding: var(--space-md);
   border: 1px solid var(--border);
 }
 
 .install-method h4 {
-  margin: 0 0 8px 0;
+  margin: 0 0 var(--space-sm) 0;
   font-size: 12px;
   font-weight: 600;
   color: var(--amber);
@@ -1065,7 +1064,7 @@ body.modal-open {
 .install-method li {
   font-size: 13px;
   color: var(--text-secondary);
-  margin-bottom: 4px;
+  margin-bottom: var(--space-xs);
   line-height: 1.4;
 }
 
@@ -1141,7 +1140,7 @@ body.modal-open {
   padding: 7px 12px;
   border-bottom: 1px solid var(--border);
   background: var(--surface);
-  gap: 8px;
+  gap: var(--space-sm);
   cursor: pointer;
   transition: background 0.1s;
   -webkit-user-select: none;
@@ -1369,9 +1368,9 @@ body.modal-open {
 /* ---- Help Section ---- */
 
 .help-section {
-  margin-top: 18px;
+  margin-top: var(--space-lg);
   border-top: 1px solid var(--border);
-  padding-top: 14px;
+  padding-top: var(--space-md);
 }
 
 .help-section summary {
@@ -1381,23 +1380,29 @@ body.modal-open {
   letter-spacing: 0.06em;
   color: var(--text-dim);
   cursor: pointer;
-  padding: 4px 0;
+  padding: var(--space-xs) 0;
   transition: color 0.15s;
+  border-radius: var(--radius);
 }
 
 .help-section summary:hover {
   color: var(--text-secondary);
 }
 
+.help-section summary:focus-visible {
+  outline: 2px solid var(--amber-dim);
+  outline-offset: 2px;
+}
+
 .help-content {
-  margin-top: 10px;
+  margin-top: var(--space-sm);
   font-size: 13px;
   line-height: 1.6;
   color: var(--text-secondary);
 }
 
 .help-content p {
-  margin: 0 0 8px 0;
+  margin: 0 0 var(--space-sm) 0;
 }
 
 .help-content p:last-child {
