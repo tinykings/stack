@@ -305,8 +305,6 @@ function computeTotals(){
   if (available !== currentAvailableAmount) {
     const direction = available > currentAvailableAmount ? 'up' : 'down';
     animateNumberChange(availableEl, currentAvailableAmount, available, 1000, direction);
-    availableEl.classList.add('amount-updated');
-    setTimeout(() => availableEl.classList.remove('amount-updated'), 600);
   }
   availableEl.textContent = '$' + available.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
   lastAvailableAmount = available; // Update lastAvailableAmount after setting new value

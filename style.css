@@ -157,7 +157,6 @@ body {
 }
 
 .list h2 .addItemSectionBtn:active {
-  transform: none;
   background: var(--amber-glow);
   color: var(--amber);
   border-color: var(--amber-dim);
@@ -208,7 +207,7 @@ body {
   border-radius: var(--radius);
   background: var(--surface);
   margin-bottom: var(--space-sm);
-  transition: background 0.1s;
+  transition: background 0.1s, border-color 0.15s;
   position: relative;
   overflow: hidden;
   border: 1px solid transparent;
@@ -292,7 +291,7 @@ body {
   justify-content: center;
   font-size: 14px;
   cursor: pointer;
-  transition: all 0.15s;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
   padding: 0;
 }
 
@@ -302,7 +301,6 @@ body {
 }
 
 .icon-action-btn:active {
-  transform: none;
   background: var(--amber-glow);
   border-color: var(--amber);
   color: var(--amber);
@@ -355,7 +353,7 @@ body {
 
 @keyframes progressUrgent {
   0%, 100% { opacity: 1; }
-  50% { opacity: 0.65; }
+  50% { opacity: 0.82; }
 }
 
 /* ---- Modal ---- */
@@ -784,11 +782,6 @@ body {
   color: var(--amber);
   line-height: 1.1;
   letter-spacing: -0.03em;
-  transition: text-shadow 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.available-amount #available.amount-updated {
-  text-shadow: 0 0 12px var(--amber-glow), 0 0 30px var(--amber-glow);
 }
 
 .available-label {
@@ -873,9 +866,7 @@ body {
   transition: transform 0.15s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.modal input[type="checkbox"]:checked {
-  transform: scale(1.15);
-}
+/* checkbox scale removed — decorative motion, quieter tool */
 
 /* ---- Spend History ---- */
 
@@ -959,12 +950,7 @@ body {
   font-size: 13px;
   line-height: 1.5;
   padding: 24px 16px;
-  animation: emptyBreathe 4s ease-in-out infinite;
-}
-
-@keyframes emptyBreathe {
-  0%, 100% { opacity: 0.55; }
-  50% { opacity: 0.75; }
+  opacity: 0.6;
 }
 
 .list-items[data-section="accounts"]:empty::after {
@@ -1414,31 +1400,19 @@ body {
 /* ---- Animation: Button hover/active feedback ---- */
 
 .icon-action-btn {
-  transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
 }
 
 .icon-action-btn:hover {
-  transform: scale(1.08);
-}
-
-.icon-action-btn:active {
-  transform: scale(0.94);
+  background: var(--surface-up);
 }
 
 .list h2 .addItemSectionBtn {
-  transition: color 0.15s, border-color 0.15s, transform 0.15s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.list h2 .addItemSectionBtn:hover {
-  transform: scale(1.08);
-}
-
-.list h2 .addItemSectionBtn:active {
-  transform: scale(0.94);
+  transition: color 0.15s, border-color 0.15s;
 }
 
 .modal .actions button {
-  transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
 }
 
 .modal .actions button:not(#_confirm_no):not(#_confirm_yes):hover {
@@ -1452,14 +1426,13 @@ body {
   border-color: #d4b058;
 }
 
-/* ---- Animation: Item card hover lift ---- */
+/* ---- Animation: Item card hover ---- */
 
 .item {
-  transition: background 0.1s, border-color 0.15s, transform 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: background 0.1s, border-color 0.15s;
 }
 
 .item:hover {
-  transform: translateY(-1px);
   border-color: var(--border-light);
 }
 
