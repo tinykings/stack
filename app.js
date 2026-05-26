@@ -137,7 +137,7 @@ function renderLists(){
         const amountClass = acc.isPositive ? 'asset' : 'liability';
         
         div.innerHTML = `
-          <div class="item-content item-clickable" data-id="${acc.id}" data-section="accounts">
+          <div class="item-content item-clickable" data-id="${acc.id}" data-section="accounts" role="button" tabindex="0">
             <div class="item-info">
               <div class="item-name">${escapeHtml(acc.name)}</div>
               <div class="item-amount ${amountClass}">$${Number(acc.amount).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
@@ -255,7 +255,7 @@ function renderLists(){
       ` : '';
 
       div.innerHTML = `
-        <div class="item-content item-clickable" data-id="${item.id}" data-section="${section}">
+        <div class="item-content item-clickable" data-id="${item.id}" data-section="${section}" role="button" tabindex="0">
           <div class="item-info">
             <div class="item-name">${escapeHtml(item.name)}</div>
             <div class="item-amount ${amountClass}">$${Math.abs(remaining).toFixed(2)}</div>
@@ -643,6 +643,15 @@ function setupUI(){
         const section = itemClickable.dataset.section;
         // For now, clicking the body also opens edit/details, or we could do nothing
         showItemForm(section, id); 
+      }
+    });
+    container.addEventListener('keydown', e => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        const item = e.target.closest('.item-clickable');
+        if (item) {
+          e.preventDefault();
+          showItemForm(item.dataset.section, item.dataset.id);
+        }
       }
     });
   });

@@ -97,15 +97,27 @@
       <div class="modal">
         <h3>Settings</h3>
         <div class="gist-controls">
-          <input id="gistId" placeholder="Gist ID">
-          <input id="gistToken" placeholder="GitHub token (Gist scope)" type="password">
+          <div class="gist-field">
+            <input id="gistId" placeholder="Gist ID">
+            <span class="help-tip" tabindex="0" data-tip="The Gist ID is the long hash in your Gist URL on GitHub.">?</span>
+          </div>
+          <div class="gist-field">
+            <input id="gistToken" placeholder="GitHub token (Gist scope)" type="password">
+            <span class="help-tip" tabindex="0" data-tip="Create a token at github.com/settings/tokens with the gist scope.">?</span>
+          </div>
           <div class="gist-buttons">
             <button id="saveGist">Save to Gist</button>
             <button id="loadGist">Load from Gist</button>
           </div>
           <div id="status" class="status"></div>
         </div>
-        <small>Data is stored for this device locally. If you want to sync between devices create a gist called budget-data.json and enter the gist id and access token with gist modify rights and save.</small>
+        <small class="gist-help">Data is stored locally by default. To sync across devices:</small>
+        <ol class="gist-steps">
+          <li>Create a GitHub Gist named <strong>budget-data.json</strong></li>
+          <li>Copy the Gist ID from the URL</li>
+          <li>Generate a GitHub token with the <strong>gist</strong> scope</li>
+          <li>Enter the ID and token above, then click <strong>Save</strong></li>
+        </ol>
         <div class="settings-section">
           <h4>Visible Sections</h4>
           <div class="section-visibility-list">
@@ -128,6 +140,17 @@
             <button id="show-install-btn" class="backup-btn">Install as App</button>
             <small>Add to your home screen for the best experience</small>
         </div>
+        <details class="help-section">
+          <summary>How Stack Works</summary>
+          <div class="help-content">
+            <p><strong>Accounts</strong> track your assets and debts. Positive amounts are assets, negative are liabilities.</p>
+            <p><strong>Budget</strong> items recur monthly or per paycheck. Set an amount and track spending against it.</p>
+            <p><strong>Bills</strong> are due on a specific day each month. Mark them paid to track cash flow.</p>
+            <p><strong>Goals</strong> have a target date and amount. Track progress toward savings targets.</p>
+            <p><strong>Available</strong> = Assets minus Liabilities minus all Budgets, Bills, and Goals.</p>
+            <p><strong>Auto Fill</strong> suggests spending allocations for the current month based on past patterns.</p>
+          </div>
+        </details>
         <div class="actions">
             <button id="gist-modal-close">Close</button>
         </div>
