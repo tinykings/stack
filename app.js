@@ -1641,11 +1641,26 @@ if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('./sw.js');
 }
 
+// Lock body scroll when any modal overlay is visible
+function setupBodyScrollLock() {
+  function check() {
+    const modals = document.querySelectorAll('.modal-overlay');
+    let open = false;
+    for (const m of modals) {
+      if (m.style.display !== 'none') { open = true; break; }
+    }
+    document.body.classList.toggle('modal-open', open);
+  }
+  const obs = new MutationObserver(check);
+  obs.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['style'] });
+}
+
 // Init
 (async function init() {
   setupUI();
   setupAutoRefresh();
   setupInstallBanner();
+  setupBodyScrollLock();
   if (localStorage.getItem(GIST_ID_KEY) && localStorage.getItem(GIST_TOKEN_KEY)) {
     await loadFromGist(true);
   }

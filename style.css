@@ -56,14 +56,18 @@ body {
   font-size: 15px;
   line-height: 1.5;
   margin: 0;
-  padding: 16px 16px calc(env(safe-area-inset-bottom) + var(--header-height) + 20px) 16px;
-  padding-top: calc(env(safe-area-inset-top, 0px) + 16px);
+  padding: var(--space-lg) var(--space-lg) calc(env(safe-area-inset-bottom) + var(--header-height) + var(--space-xl)) var(--space-lg);
+  padding-top: calc(env(safe-area-inset-top, 0px) + var(--space-lg));
   background: var(--bg);
   color: var(--text);
   -webkit-overflow-scrolling: touch;
   min-height: 100vh;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+body.modal-open {
+  overflow: hidden;
 }
 
 /* Semantic colors */
@@ -87,6 +91,10 @@ body {
   display: grid;
   grid-template-columns: 1fr;
   gap: var(--space-xl);
+}
+
+@media (max-width: 599px) {
+  body { font-size: 16px; }
 }
 
 @media (min-width: 768px) {
@@ -226,8 +234,6 @@ body {
   cursor: pointer;
 }
 
-.item:active { }
-
 .item .item-info {
   display: flex;
   flex-wrap: nowrap;
@@ -365,11 +371,10 @@ body {
   backdrop-filter: blur(4px);
   -webkit-backdrop-filter: blur(4px);
   display: flex;
-  align-items: flex-start;
+  align-items: flex-end;
   justify-content: center;
   z-index: 9999;
   padding: 0;
-  padding-top: env(safe-area-inset-top);
   animation: fadeIn 0.15s ease;
 }
 
@@ -378,39 +383,41 @@ body {
   to { opacity: 1; }
 }
 
-@keyframes slideDown {
-  from { transform: translateY(-20px); opacity: 0; }
-  to { transform: translateY(0); opacity: 1; }
+@keyframes sheetUp {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
 }
 
 .modal {
   background: var(--card);
   padding: var(--space-xl);
-  padding-top: calc(var(--space-xl) + env(safe-area-inset-top));
-  border-radius: 0 0 var(--radius-md) var(--radius-md);
+  padding-bottom: calc(var(--space-xl) + env(safe-area-inset-bottom));
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
   border: 1px solid var(--border);
-  border-top: none;
+  border-bottom: none;
   width: 100%;
   max-width: 460px;
   max-height: 90vh;
   overflow-y: auto;
+  overscroll-behavior: contain;
   color: inherit;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
-  animation: slideDown 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.4);
+  animation: sheetUp 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 @media (min-width: 600px) {
   .modal-overlay {
     align-items: center;
     padding: var(--space-xl);
-    padding-top: var(--space-xl);
   }
   .modal {
     border-radius: var(--radius-md);
     border: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
     padding-top: var(--space-xl);
     padding-bottom: var(--space-xl);
     max-height: calc(100vh - 40px);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
     animation: slideUp 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   }
   @keyframes slideUp {
@@ -505,14 +512,31 @@ body {
   font-weight: 600;
   font-family: var(--font);
   min-height: 42px;
-  transition: all 0.1s;
+  transition: background 0.15s, border-color 0.15s, opacity 0.15s;
   background: var(--surface);
   color: var(--text);
 }
 
 .modal .actions button:active {
-  transform: none;
   opacity: 0.8;
+}
+
+@media (max-width: 599px) {
+  .modal .actions {
+    flex-direction: column;
+    gap: var(--space-sm);
+  }
+  .modal .actions button {
+    width: 100%;
+    justify-content: center;
+    padding: 12px 20px;
+    min-height: 48px;
+  }
+  .modal .actions button#_item_ok,
+  .modal .actions button#_spend_ok {
+    flex: none;
+    order: -1;
+  }
 }
 
 .modal .actions button#_item_ok,
@@ -607,8 +631,8 @@ body {
   font-weight: 600;
   font-size: 13px;
   font-family: var(--font);
-  min-height: 42px;
-  transition: all 0.15s;
+  min-height: 44px;
+  transition: background 0.15s, opacity 0.15s;
 }
 
 .gist-buttons button:hover {
@@ -616,7 +640,6 @@ body {
 }
 
 .gist-buttons button:active {
-  transform: none;
   opacity: 0.8;
 }
 
@@ -625,21 +648,21 @@ body {
   font-size: 12px;
   color: var(--text-dim);
   text-align: center;
-  padding: 6px;
+  padding: var(--space-xs) var(--space-sm);
 }
 
 /* ---- Backup Section ---- */
 
 .settings-section {
-  margin: 16px 0;
-  padding: 12px;
+  margin: var(--space-lg) 0;
+  padding: var(--space-md);
   background: var(--surface);
   border-radius: var(--radius);
   border: 1px solid var(--border);
 }
 
 .settings-section h4 {
-  margin: 0 0 12px 0;
+  margin: 0 0 var(--space-md) 0;
   font-size: 13px;
   font-weight: 600;
   color: var(--amber);
@@ -650,13 +673,13 @@ body {
 .section-visibility-list {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 12px;
+  gap: var(--space-md);
 }
 
 .section-visibility-list label {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-sm);
   font-size: 14px;
   cursor: pointer;
   color: var(--text-secondary);
@@ -673,12 +696,12 @@ body {
 }
 
 .backup-section {
-  margin-top: 20px;
-  padding-top: 20px;
+  margin-top: var(--space-xl);
+  padding-top: var(--space-xl);
   border-top: 1px solid var(--border);
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--space-sm);
 }
 
 .backup-section h4 {
@@ -692,7 +715,7 @@ body {
 
 .backup-buttons {
   display: flex;
-  gap: 8px;
+  gap: var(--space-sm);
 }
 
 .backup-btn {
@@ -706,8 +729,8 @@ body {
   font-weight: 500;
   font-size: 13px;
   font-family: var(--font);
-  min-height: 40px;
-  transition: all 0.15s;
+  min-height: 44px;
+  transition: border-color 0.15s, color 0.15s, opacity 0.15s;
 }
 
 .backup-btn:hover {
@@ -716,7 +739,6 @@ body {
 }
 
 .backup-btn:active {
-  transform: none;
   opacity: 0.8;
 }
 
@@ -807,12 +829,12 @@ body {
   font-size: 16px;
   border-radius: var(--radius);
   padding: 10px;
-  min-width: 42px;
-  min-height: 42px;
+  min-width: 44px;
+  min-height: 44px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.15s;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
   cursor: pointer;
 }
 
@@ -822,7 +844,6 @@ body {
 }
 
 .icon-btn:active {
-  transform: none;
   background: var(--surface-up);
 }
 
@@ -987,6 +1008,10 @@ body {
 @media (hover: none) {
   .item:active {
     background: var(--surface-up);
+  }
+  .icon-btn:active,
+  .icon-action-btn:active {
+    background: var(--amber-glow);
   }
 }
 
