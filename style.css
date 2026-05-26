@@ -33,6 +33,14 @@
   --header-height: 68px;
   --radius: 4px;
   --radius-md: 6px;
+
+  /* 4pt spacing scale */
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 12px;
+  --space-lg: 16px;
+  --space-xl: 24px;
+  --space-2xl: 32px;
 }
 
 *, *::before, *::after {
@@ -78,7 +86,7 @@ body {
 .lists {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 20px;
+  gap: var(--space-xl);
 }
 
 @media (min-width: 768px) {
@@ -87,21 +95,21 @@ body {
 
 @media (min-width: 1024px) {
   .lists { grid-template-columns: repeat(4, 1fr); }
-  body { padding: 24px 24px calc(env(safe-area-inset-bottom) + var(--header-height) + 24px) 24px; }
+  body { padding: var(--space-xl) var(--space-xl) calc(env(safe-area-inset-bottom) + var(--header-height) + var(--space-xl)) var(--space-xl); }
 }
 
 /* ---- Section Cards ---- */
 
 .list {
   background: var(--card);
-  padding: 14px;
+  padding: var(--space-lg);
   border-radius: var(--radius-md);
   border: 1px solid var(--border);
   box-shadow: none;
 }
 
 .list h2 {
-  margin: 0 0 14px 0;
+  margin: 0 0 var(--space-md) 0;
   display: flex;
   align-items: baseline;
   justify-content: space-between;
@@ -110,7 +118,7 @@ body {
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--text-dim);
-  padding-bottom: 10px;
+  padding-bottom: var(--space-sm);
   border-bottom: 1px solid var(--border);
 }
 
@@ -120,7 +128,7 @@ body {
   font-weight: 500;
   color: var(--text-secondary);
   margin-left: auto;
-  margin-right: 10px;
+  margin-right: var(--space-sm);
   letter-spacing: -0.02em;
 }
 
@@ -195,11 +203,11 @@ body {
   display: flex;
   flex-direction: row;
   align-items: center;
-  gap: 10px;
-  padding: 10px 12px;
+  gap: var(--space-sm);
+  padding: var(--space-md) var(--space-lg);
   border-radius: var(--radius);
   background: var(--surface);
-  margin-bottom: 6px;
+  margin-bottom: var(--space-sm);
   transition: background 0.1s;
   position: relative;
   overflow: hidden;
@@ -266,7 +274,7 @@ body {
 .item .item-actions-inline {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-xs);
   flex-shrink: 0;
 }
 
@@ -327,7 +335,7 @@ body {
   background: var(--border);
   border-radius: 1px;
   overflow: hidden;
-  margin-top: 4px;
+  margin-top: var(--space-xs);
 }
 
 .item-progress-bar {
@@ -379,8 +387,8 @@ body {
 
 .modal {
   background: var(--card);
-  padding: 20px;
-  padding-top: calc(20px + env(safe-area-inset-top));
+  padding: var(--space-xl);
+  padding-top: calc(var(--space-xl) + env(safe-area-inset-top));
   border-radius: 0 0 var(--radius-md) var(--radius-md);
   border: 1px solid var(--border);
   border-top: none;
@@ -396,14 +404,14 @@ body {
 @media (min-width: 600px) {
   .modal-overlay {
     align-items: center;
-    padding: 20px;
-    padding-top: 20px;
+    padding: var(--space-xl);
+    padding-top: var(--space-xl);
   }
   .modal {
     border-radius: var(--radius-md);
     border: 1px solid var(--border);
-    padding-top: 20px;
-    padding-bottom: 20px;
+    padding-top: var(--space-xl);
+    padding-bottom: var(--space-xl);
     max-height: calc(100vh - 40px);
     animation: slideUp 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   }
@@ -414,7 +422,7 @@ body {
 }
 
 .modal h3 {
-  margin: 0 0 18px 0;
+  margin: 0 0 var(--space-lg) 0;
   font-size: 16px;
   font-weight: 600;
   letter-spacing: -0.01em;
@@ -423,7 +431,7 @@ body {
 
 .modal label {
   display: block;
-  margin-bottom: 14px;
+  margin-bottom: var(--space-md);
   font-size: 12px;
   font-weight: 600;
   text-transform: uppercase;
@@ -465,7 +473,7 @@ body {
   color: inherit;
   font-size: 15px;
   font-family: var(--font);
-  margin-top: 6px;
+  margin-top: var(--space-xs);
   transition: border-color 0.15s;
 }
 
@@ -486,8 +494,8 @@ body {
 .modal .actions {
   display: flex;
   justify-content: flex-end;
-  gap: 8px;
-  margin-top: 20px;
+  gap: var(--space-sm);
+  margin-top: var(--space-xl);
 }
 
 .modal .actions button {
@@ -744,7 +752,7 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 10px 16px calc(10px + env(safe-area-inset-bottom)) 16px;
+  padding: var(--space-md) var(--space-lg) calc(var(--space-sm) + env(safe-area-inset-bottom)) var(--space-lg);
   position: fixed;
   bottom: 0;
   left: 0;
@@ -794,7 +802,7 @@ body {
 .footer-right {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-sm);
 }
 
 .icon-btn {
@@ -876,7 +884,7 @@ body {
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  margin: 18px 0 8px 0;
+  margin: var(--space-lg) 0 var(--space-sm) 0;
   color: var(--text-dim);
 }
 
@@ -1259,7 +1267,7 @@ body {
 .gist-field {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-sm);
 }
 
 .gist-field input {
