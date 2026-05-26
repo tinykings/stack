@@ -305,8 +305,9 @@ function computeTotals(){
   if (available !== currentAvailableAmount) {
     const direction = available > currentAvailableAmount ? 'up' : 'down';
     animateNumberChange(availableEl, currentAvailableAmount, available, 1000, direction);
+  } else {
+    availableEl.textContent = '$' + available.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
   }
-  availableEl.textContent = '$' + available.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
   lastAvailableAmount = available; // Update lastAvailableAmount after setting new value
 }
 
@@ -371,7 +372,7 @@ function showHistoryModal(){
   if (history.length === 0) return;
 
   const overlay = document.createElement('div'); overlay.className = 'modal-overlay';
-  const modal = document.createElement('div'); modal.className = 'modal';
+  const modal = document.createElement('div'); modal.className = 'modal'; modal.setAttribute('role', 'dialog'); modal.setAttribute('aria-modal', 'true');
 
   let listHtml = '<ul class="history-list">';
   history.forEach(action => {
@@ -415,9 +416,10 @@ function showInlineError(inputEl, message) {
   const existing = inputEl.parentElement.querySelector('.inline-error');
   if (existing) existing.remove();
   const rootStyle = getComputedStyle(document.documentElement);
-  inputEl.style.borderColor = rootStyle.getPropertyValue('--red-text').trim() || '#b05050';
+  inputEl.style.borderColor = rootStyle.getPropertyValue('--red-text').trim() || '#d47272';
   const err = document.createElement('span');
   err.className = 'inline-error';
+  err.setAttribute('role', 'alert');
   err.textContent = message;
   Object.assign(err.style, { color: rootStyle.getPropertyValue('--red-text').trim() || '#d47272', fontSize: '12px', fontFamily: 'var(--mono)', marginTop: '4px', display: 'block' });
   inputEl.parentElement.appendChild(err);
@@ -440,7 +442,7 @@ function showConfirmDialog(message) {
     overlay.className = 'modal-overlay';
     overlay.style.alignItems = 'center';
     const modal = document.createElement('div');
-    modal.className = 'modal';
+    modal.className = 'modal'; modal.setAttribute('role', 'dialog'); modal.setAttribute('aria-modal', 'true');
     modal.style.maxWidth = '380px';
     const rootStyle = getComputedStyle(document.documentElement);
     modal.innerHTML = `
@@ -924,7 +926,7 @@ function setStatus(msg, isError=false){
   const rootStyle = getComputedStyle(document.documentElement);
   const s = $('status');
   s.textContent = msg;
-  s.style.color = isError ? (rootStyle.getPropertyValue('--red-bg').trim() || '#ffb4b4') : (rootStyle.getPropertyValue('--info-bg').trim() || '#cfe9ff');
+  s.style.color = isError ? (rootStyle.getPropertyValue('--red-text').trim() || '#d47272') : (rootStyle.getPropertyValue('--text-dim').trim() || '#8a887f');
 }
 
 // Show a modal/form for adding spending to an item
@@ -934,7 +936,7 @@ function showSpendingForm(section, itemId){
 
   // Create modal overlay
   const overlay = document.createElement('div'); overlay.className = 'modal-overlay';
-  const modal = document.createElement('div'); modal.className = 'modal';
+  const modal = document.createElement('div'); modal.className = 'modal'; modal.setAttribute('role', 'dialog'); modal.setAttribute('aria-modal', 'true');
   
   // Build account selector options
   let accountOptions = '<option value="">-- No account change --</option>';
@@ -1042,7 +1044,7 @@ function showEditAmountForm(section, itemId, currentAmount) {
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay';
   const modal = document.createElement('div');
-  modal.className = 'modal';
+  modal.className = 'modal'; modal.setAttribute('role', 'dialog'); modal.setAttribute('aria-modal', 'true');
 
   const title = `Edit Amount for ${getSectionLabel(section)}`;
 
@@ -1110,7 +1112,7 @@ function showItemForm(section, itemId = null) {
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay';
   const modal = document.createElement('div');
-  modal.className = 'modal';
+  modal.className = 'modal'; modal.setAttribute('role', 'dialog'); modal.setAttribute('aria-modal', 'true');
 
   const title = isEdit ? `Edit ${getSectionLabel(section)}` : `Add ${getSectionLabel(section)}`;
 
@@ -1408,7 +1410,7 @@ function showAutofillModal() {
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay';
   const modal = document.createElement('div');
-  modal.className = 'modal';
+  modal.className = 'modal'; modal.setAttribute('role', 'dialog'); modal.setAttribute('aria-modal', 'true');
 
   const storedFreq = localStorage.getItem(AUTOFILL_FREQ_KEY) || 'biweekly';
   const storedStartDate = localStorage.getItem(AUTOFILL_START_DATE_KEY) || '';
@@ -1417,7 +1419,7 @@ function showAutofillModal() {
     <h3>Auto Fill</h3>
     <div id="_af_items_container"></div>
     <div class="autofill-freq-row">
-      <span class="autofill-freq-label">Pay Frequency</span>
+      <label class="autofill-freq-label" for="_af_frequency">Pay Frequency</label>
       <select id="_af_frequency">
         <option value="weekly" ${storedFreq === 'weekly' ? 'selected' : ''}>Every Week</option>
         <option value="biweekly" ${storedFreq === 'biweekly' ? 'selected' : ''}>Every Two Weeks</option>
@@ -1425,7 +1427,7 @@ function showAutofillModal() {
       </select>
     </div>
     <div class="autofill-freq-row">
-      <span class="autofill-freq-label">Start Date</span>
+      <label class="autofill-freq-label" for="_af_start_date">Start Date</label>
       <input type="date" id="_af_start_date" value="${storedStartDate}">
     </div>
     <div class="actions">
@@ -1643,13 +1645,19 @@ if ('serviceWorker' in navigator) {
 
 // Lock body scroll when any modal overlay is visible
 function setupBodyScrollLock() {
+  let pending = false;
   function check() {
-    const modals = document.querySelectorAll('.modal-overlay');
-    let open = false;
-    for (const m of modals) {
-      if (m.style.display !== 'none') { open = true; break; }
-    }
-    document.body.classList.toggle('modal-open', open);
+    if (pending) return;
+    pending = true;
+    requestAnimationFrame(() => {
+      pending = false;
+      const modals = document.querySelectorAll('.modal-overlay');
+      let open = false;
+      for (const m of modals) {
+        if (m.style.display !== 'none') { open = true; break; }
+      }
+      document.body.classList.toggle('modal-open', open);
+    });
   }
   const obs = new MutationObserver(check);
   obs.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['style'] });

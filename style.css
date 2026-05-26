@@ -15,7 +15,7 @@
 
   --text: #d4d0c8;
   --text-secondary: #8a8780;
-  --text-dim: #76736b;
+  --text-dim: #8a887f;
 
   --amber: #c8a44e;
   --amber-dim: #a68a3a;
@@ -345,7 +345,7 @@ body.modal-open {
 .item-progress-bar {
   height: 100%;
   border-radius: 1px;
-  transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  /* width transition removed — DOM is rebuilt every render, transition never fires */
 }
 
 .item-progress-bar.good { background: var(--green); }
@@ -426,6 +426,7 @@ body.modal-open {
   }
 }
 
+.modal h2,
 .modal h3 {
   margin: 0 0 var(--space-lg) 0;
   font-size: 16px;
@@ -543,14 +544,14 @@ body.modal-open {
 .modal .actions button#_spend_ok {
   background: var(--amber);
   border-color: var(--amber);
-  color: #141414;
+  color: var(--bg);
   flex: 1;
 }
 
 .modal .actions button#_item_paid {
   background: var(--green);
   border-color: var(--green);
-  color: #141414;
+  color: var(--bg);
 }
 
 .modal .actions button#_item_paid:hover {
@@ -561,7 +562,7 @@ body.modal-open {
 .modal .actions button#_item_spend {
   background: var(--blue);
   border-color: var(--blue);
-  color: #141414;
+  color: var(--bg);
 }
 
 .modal .actions button#_item_spend:hover {
@@ -869,12 +870,13 @@ body.modal-open {
   height: 2px;
   background: var(--amber);
   opacity: 0.3;
+  transform-origin: left center;
   animation: undoCountdown 6s linear forwards;
 }
 
 @keyframes undoCountdown {
-  from { width: 100%; }
-  to { width: 0%; }
+  from { transform: scaleX(1); }
+  to { transform: scaleX(0); }
 }
 
 /* ---- Checkbox ---- */
@@ -1250,7 +1252,7 @@ body.modal-open {
 .modal .actions button#_af_fill {
   background: var(--amber);
   border-color: var(--amber);
-  color: #141414;
+  color: var(--bg);
   flex: 1;
 }
 
@@ -1307,7 +1309,6 @@ body.modal-open {
 .help-tip:focus-visible {
   border-color: var(--amber-dim);
   color: var(--amber);
-  outline: none;
 }
 
 .help-tip::after {
@@ -1325,6 +1326,7 @@ body.modal-open {
   color: var(--text-secondary);
   white-space: normal;
   width: 220px;
+  max-width: 90vw;
   text-align: left;
   pointer-events: none;
   opacity: 0;
@@ -1445,12 +1447,6 @@ body.modal-open {
   border-color: var(--border-light);
 }
 
-.modal .actions button#_item_ok:hover,
-.modal .actions button#_spend_ok:hover {
-  background: #d4b058;
-  border-color: #d4b058;
-}
-
 /* ---- Animation: Item card hover ---- */
 
 .item {
@@ -1465,6 +1461,15 @@ body.modal-open {
   outline: 2px solid var(--amber-dim);
   outline-offset: 2px;
   border-radius: var(--radius);
+}
+
+.icon-btn:focus-visible,
+.addItemSectionBtn:focus-visible,
+.gist-buttons button:focus-visible,
+.modal .actions button:focus-visible,
+.backup-btn:focus-visible {
+  outline: 2px solid var(--amber-dim);
+  outline-offset: 2px;
 }
 
 /* ---- Animation: Section total color transitions ---- */
