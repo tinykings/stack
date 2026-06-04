@@ -205,8 +205,16 @@ function renderLists(){
     expensesContainer.appendChild(div);
   });
 
-  // Animate progress bars from 0 to target width
+  // Stagger items top-to-bottom with a subtle lift, sync progress bars
   requestAnimationFrame(() => {
+    const items = document.querySelectorAll('.item');
+    items.forEach((el, i) => {
+      const delay = i * 0.06;
+      el.style.animation = `itemStagger 0.5s cubic-bezier(0.16, 1, 0.3, 1) both`;
+      el.style.animationDelay = delay + 's';
+      const bar = el.querySelector('.item-progress-bar');
+      if (bar) bar.style.transitionDelay = delay + 's';
+    });
     void expensesContainer.offsetHeight;
     expensesContainer.querySelectorAll('.item-progress').forEach(el => {
       const w = parseFloat(el.dataset.targetWidth);
@@ -317,6 +325,12 @@ function render(){
   renderLists(); 
   computeTotals(); 
   renderHistory(); 
+  const landing = document.getElementById('landing');
+  if (landing) {
+    const hasData = (state.accounts && state.accounts.length > 0)
+      || (state.items && state.items.budget && state.items.budget.length > 0);
+    landing.classList.toggle('hidden', hasData);
+  }
 }
 
 function escapeHtml(text){ return (text+'').replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;","\"":"&quot;"})[c]); }
@@ -468,6 +482,36 @@ function showConfirmDialog(message) {
   });
 }
 
+// Three-way sync choice dialog
+function showSyncChoiceDialog() {
+  return new Promise(resolve => {
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.style.alignItems = 'center';
+    const modal = document.createElement('div');
+    modal.className = 'modal'; modal.setAttribute('role', 'dialog'); modal.setAttribute('aria-modal', 'true');
+    modal.style.maxWidth = '380px';
+    modal.innerHTML = `
+      <p style="margin:0 0 20px;font-size:15px;line-height:1.5;color:var(--text)">You have local data. What would you like to do?</p>
+      <div class="actions" style="flex-direction:column">
+        <button id="_sync_save" style="background:var(--amber);border-color:var(--amber);color:var(--bg)">Replace data on Gist</button>
+        <button id="_sync_load" style="background:var(--surface);border-color:var(--border);color:var(--text)">Load from Gist</button>
+        <button id="_sync_cancel" style="background:transparent;border-color:var(--border);color:var(--text-dim)">Cancel</button>
+      </div>`;
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+    const cleanup = () => overlay.remove();
+    const resolveAndCleanup = (val) => { cleanup(); resolve(val); };
+    modal.querySelector('#_sync_save').addEventListener('click', () => resolveAndCleanup('save'));
+    modal.querySelector('#_sync_load').addEventListener('click', () => resolveAndCleanup('load'));
+    modal.querySelector('#_sync_cancel').addEventListener('click', () => resolveAndCleanup(null));
+    overlay.addEventListener('click', e => { if (e.target === overlay) resolveAndCleanup(null); });
+    modal.addEventListener('keydown', e => { if (e.key === 'Escape') resolveAndCleanup(null); });
+    trapFocus(modal);
+    setTimeout(() => modal.querySelector('#_sync_save').focus(), 20);
+  });
+}
+
 // Undo mechanism
 let undoSnapshot = null;
 let undoDescription = '';
@@ -591,6 +635,26 @@ function addSpending(section, itemId, spendName, spendAmount){
 function setupUI(){
   loadLocal(); render();
 
+  // Landing page onboarding
+  const landingArrow = document.querySelector('.landing-arrow');
+  if (landingArrow) {
+    landingArrow.addEventListener('click', () => {
+      document.body.classList.add('onboarding');
+      document.getElementById('landing').classList.add('hidden');
+      showItemForm('accounts', null, () => {
+        showItemForm('budget', null, () => {
+          document.body.classList.remove('onboarding');
+          render();
+        }, 'Next');
+      }, 'Next', () => {
+        document.body.classList.remove('onboarding');
+        if (!state.accounts || state.accounts.length === 0) {
+          document.getElementById('landing').classList.remove('hidden');
+        }
+      });
+    });
+  }
+
   // per-section add buttons (now includes accounts)
   document.querySelectorAll('.addItemSectionBtn').forEach(btn=>{
     btn.addEventListener('click', e=>{
@@ -636,10 +700,6 @@ function setupUI(){
     });
   });
 
-  // Gist controls (moved to footer). Wire save/load buttons if present.
-  const saveBtn = $('saveGist'); if(saveBtn) saveBtn.addEventListener('click', e=>{ e.preventDefault(); saveToGist(false); });
-  const loadBtn = $('loadGist'); if(loadBtn) loadBtn.addEventListener('click', e=>{ e.preventDefault(); loadFromGist(); });
-
   const gistModal = $('gist-modal');
   const syncBtn = $('sync-btn');
   const gistModalClose = $('gist-modal-close');
@@ -647,6 +707,27 @@ function setupUI(){
   if (syncBtn) {
     syncBtn.addEventListener('click', () => {
       gistModal.style.display = 'flex';
+    });
+  }
+
+  const gistSaveBtn = $('gist-save-btn');
+  if (gistSaveBtn) {
+    gistSaveBtn.addEventListener('click', async () => {
+      const token = ($('gistToken')?.value.trim() || localStorage.getItem(GIST_TOKEN_KEY) || '');
+      const gistId = ($('gistId')?.value.trim() || localStorage.getItem(GIST_ID_KEY) || '');
+      if (!token || !gistId) { setStatus('Enter Gist ID and token', true); return; }
+
+      const hasLocalData = (state.accounts && state.accounts.length > 0)
+        || (state.items && state.items.budget && state.items.budget.length > 0)
+        || (state.actionHistory && state.actionHistory.length > 0);
+
+      if (!hasLocalData) {
+        await loadFromGist();
+      } else {
+        const choice = await showSyncChoiceDialog();
+        if (choice === 'save') await saveToGist(false);
+        else if (choice === 'load') await loadFromGist();
+      }
     });
   }
 
@@ -742,9 +823,9 @@ function setupUI(){
 
 // Gist API
 function setGistLoading(loading) {
-  const btns = document.querySelectorAll('#saveGist, #loadGist');
-  btns.forEach(btn => { btn.disabled = loading; });
-  document.querySelector('.gist-controls').classList.toggle('gist-loading', loading);
+  const btn = document.getElementById('gist-save-btn');
+  if (btn) btn.disabled = loading;
+  document.querySelector('.gist-controls')?.classList.toggle('gist-loading', loading);
 }
 
 async function saveToGist(createNew=false, silent=false){
@@ -973,10 +1054,8 @@ function showSpendingForm(section, itemId){
     render();
     autosaveToGist();
     cleanup();
+    if (onSaved) onSaved();
   });
-
-  // close modal on overlay click (but not when clicking inside modal)
-  overlay.addEventListener('click', (e)=>{ if(e.target === overlay) cleanup(); });
 }
 
 function updateItemAmountAndResetSpent(section, id, newAmount){
@@ -1055,7 +1134,7 @@ function showEditAmountForm(section, itemId, currentAmount) {
     scheduleUndoClear();
   });
 }
-function showItemForm(section, itemId = null) {
+function showItemForm(section, itemId = null, onSaved = null, okLabel = null, onCancel = null) {
   const isEdit = itemId !== null;
   let item;
 
@@ -1125,7 +1204,7 @@ function showItemForm(section, itemId = null) {
       ${isEdit ? '<button id="_item_delete" class="delBtn">Delete</button>' : ''}
       <button id="_item_cancel">Cancel</button>
       ${isEdit && section !== 'accounts' ? '<button id="_item_spend" class="spendBtn">Spend</button>' : ''}
-      <button id="_item_ok">${isEdit ? 'Save' : 'Add'}</button>
+      <button id="_item_ok">${okLabel || (isEdit ? 'Save' : 'Add')}</button>
     </div>
   `;
   overlay.appendChild(modal);
@@ -1133,13 +1212,14 @@ function showItemForm(section, itemId = null) {
 
   setTimeout(() => document.getElementById('_item_name').focus(), 20);
 
-  function cleanup() {
+  function cleanup(canceled) {
     closeOverlay(overlay);
+    if (canceled && onCancel) onCancel();
   }
 
   modal.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') { e.preventDefault(); document.getElementById('_item_ok').click(); }
-    if (e.key === 'Escape') { e.preventDefault(); cleanup(); }
+    if (e.key === 'Escape') { e.preventDefault(); cleanup(true); }
   });
   trapFocus(modal);
 
@@ -1149,9 +1229,9 @@ function showItemForm(section, itemId = null) {
     document.getElementById('_item_needed_amount').addEventListener('focus', (e) => e.target.select());
   }
 
-  document.getElementById('_item_cancel').addEventListener('click', () => cleanup());
+  document.getElementById('_item_cancel').addEventListener('click', () => cleanup(true));
   overlay.addEventListener('click', (e) => {
-    if (e.target === overlay) cleanup();
+    if (e.target === overlay) cleanup(true);
   });
 
   if (isEdit) {
@@ -1244,7 +1324,12 @@ function showItemForm(section, itemId = null) {
       addItem({ name, amount: newAmount, neededAmount: finalNeededAmount, due, section, enableSpending: section !== 'accounts' ? true : undefined });
     }
 
-    cleanup();
+    if (onSaved) {
+      overlay.remove();
+      onSaved();
+    } else {
+      cleanup();
+    }
   });
 }
 
@@ -1472,7 +1557,10 @@ function showAutofillModal() {
   document.getElementById('_af_frequency').addEventListener('change', renderItems);
   document.getElementById('_af_start_date').addEventListener('change', renderItems);
 
-  function cleanup() { closeOverlay(overlay); }
+  function cleanup(canceled) {
+    closeOverlay(overlay);
+    if (canceled && onCancel) onCancel();
+  }
   document.getElementById('_af_cancel').addEventListener('click', cleanup);
   overlay.addEventListener('click', e => { if (e.target === overlay) cleanup(); });
 

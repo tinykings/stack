@@ -83,7 +83,83 @@ body.modal-open {
   max-width: 760px;
 }
 
-/* .top and .balances removed — dead markup cleaned up */
+/* ---- Landing Page ---- */
+
+#landing {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg);
+  padding: var(--space-xl);
+  transition: opacity 0.3s ease;
+}
+
+#landing.hidden {
+  display: none;
+}
+
+.landing-inner {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-xl);
+}
+
+.landing-title {
+  font-family: var(--font);
+  font-size: clamp(48px, 12vw, 88px);
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  color: var(--text);
+  line-height: 1;
+  margin: 0;
+  text-transform: uppercase;
+}
+
+.landing-tagline {
+  font-family: var(--mono);
+  font-size: clamp(14px, 3vw, 17px);
+  color: var(--text-dim);
+  line-height: 1.5;
+  margin: 0;
+  letter-spacing: 0.02em;
+}
+
+.landing-arrow {
+  background: transparent;
+  border: 2px solid var(--border-light);
+  color: var(--text);
+  width: 64px;
+  height: 64px;
+  cursor: pointer;
+  font-size: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+  line-height: 1;
+  padding: 0;
+}
+
+.landing-arrow:hover {
+  border-color: var(--amber);
+  color: var(--amber);
+}
+
+.landing-arrow:active {
+  background: var(--amber-glow);
+  border-color: var(--amber);
+  color: var(--amber);
+}
+
+.landing-arrow:focus-visible {
+  outline: 2px solid var(--amber-dim);
+  outline-offset: 3px;
+}
 
 /* ---- Grid ---- */
 
@@ -512,14 +588,16 @@ body.modal-open {
     min-height: 48px;
   }
   .modal .actions button#_item_ok,
-  .modal .actions button#_spend_ok {
+  .modal .actions button#_spend_ok,
+  #gist-save-btn {
     flex: none;
     order: -1;
   }
 }
 
 .modal .actions button#_item_ok,
-.modal .actions button#_spend_ok {
+.modal .actions button#_spend_ok,
+#gist-save-btn {
   background: var(--amber);
   border-color: var(--amber);
   color: var(--bg);
@@ -538,7 +616,8 @@ body.modal-open {
 }
 
 .modal .actions button#_item_ok:hover,
-.modal .actions button#_spend_ok:hover {
+.modal .actions button#_spend_ok:hover,
+#gist-save-btn:hover {
   background: var(--amber-dim);
   border-color: var(--amber-dim);
 }
@@ -581,38 +660,6 @@ body.modal-open {
 .gist-controls input:focus {
   border-color: var(--amber-dim);
   box-shadow: 0 0 0 1px var(--amber-glow);
-}
-
-.gist-buttons {
-  display: flex;
-  gap: var(--space-sm);
-}
-
-.gist-buttons button {
-  flex: 1;
-  padding: 10px;
-  border-radius: var(--radius);
-  border: 1px solid var(--amber-dim);
-  background: var(--amber-glow);
-  color: var(--amber);
-  cursor: pointer;
-  font-weight: 600;
-  font-size: 13px;
-  font-family: var(--font);
-  min-height: 44px;
-  transition: background 0.15s, opacity 0.15s;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-}
-
-.gist-buttons button:hover {
-  background: rgba(200, 164, 78, 0.15);
-}
-
-.gist-buttons button:active {
-  opacity: 0.8;
 }
 
 .status {
@@ -753,6 +800,10 @@ body.modal-open {
   display: flex;
   align-items: center;
   gap: var(--space-sm);
+}
+
+body.onboarding .footer-bar {
+  display: none;
 }
 
 .icon-btn {
@@ -1295,30 +1346,6 @@ body.modal-open {
 
 /* ---- Gist Setup Steps ---- */
 
-.gist-help {
-  display: block;
-  margin-top: 16px;
-  font-size: 13px;
-  color: var(--text-secondary);
-  line-height: 1.4;
-}
-
-.gist-steps {
-  margin: 8px 0 0 0;
-  padding-left: 20px;
-  font-size: 12px;
-  color: var(--text-secondary);
-  line-height: 1.6;
-}
-
-.gist-steps li {
-  margin-bottom: 2px;
-}
-
-.gist-steps li strong {
-  color: var(--text);
-}
-
 /* ---- Help Section ---- */
 
 .help-section {
@@ -1369,20 +1396,20 @@ body.modal-open {
 
 /* ---- Gist Loading State ---- */
 
-.gist-controls.gist-loading .gist-buttons button {
-  opacity: 0.4;
-  pointer-events: none;
+#gist-save-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 6px;
 }
 
-.gist-controls.gist-loading .gist-buttons button::before {
+#gist-save-btn:disabled::before {
   content: '';
   width: 14px;
   height: 14px;
-  border: 2px solid var(--amber);
+  border: 2px solid currentColor;
   border-top-color: transparent;
   border-radius: 50%;
   animation: btnSpinner 0.6s linear infinite;
@@ -1448,7 +1475,6 @@ body.modal-open {
 .icon-btn:focus-visible,
 .icon-action-btn:focus-visible,
 .addItemSectionBtn:focus-visible,
-.gist-buttons button:focus-visible,
 .modal .actions button:focus-visible,
 .backup-btn:focus-visible {
   outline: 2px solid var(--amber-dim);
@@ -1472,6 +1498,13 @@ body.modal-open {
 
 .list-items:empty::after {
   animation: fadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* ---- Animation: Item stagger ---- */
+
+@keyframes itemStagger {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 /* ---- Accessibility: Reduced motion ---- */

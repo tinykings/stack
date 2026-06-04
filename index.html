@@ -55,6 +55,14 @@
     </div>
   </div>
 
+  <div id="landing">
+    <div class="landing-inner">
+      <h1 class="landing-title">STACK</h1>
+      <p class="landing-tagline">manage your cash<br>in stacks</p>
+      <button class="landing-arrow" aria-label="Get started">→</button>
+    </div>
+  </div>
+
   <main class="container">
     <h1 class="app-title">Stack</h1>
 
@@ -100,21 +108,9 @@
             <input id="gistToken" placeholder="GitHub token (Gist scope)" type="password" aria-label="GitHub token">
             <span class="help-tip" tabindex="0" data-tip="Create a token at github.com/settings/tokens with the gist scope.">?</span>
           </div>
-          <div class="gist-buttons">
-            <button id="saveGist">Save to Gist</button>
-            <button id="loadGist">Load from Gist</button>
-          </div>
           <div id="status" class="status"></div>
         </div>
-        <small class="gist-help">Data is stored locally by default. To sync across devices:</small>
-        <ol class="gist-steps">
-          <li>Create a GitHub Gist named <strong>budget-data.json</strong></li>
-          <li>Copy the Gist ID from the URL</li>
-          <li>Generate a GitHub token with the <strong>gist</strong> scope</li>
-          <li>Enter the ID and token above, then click <strong>Save</strong></li>
-        </ol>
         <div class="backup-section">
-            <h4>Backup & Restore</h4>
             <div class="backup-buttons">
                 <button id="export-btn" class="backup-btn">Export Data</button>
                 <button id="import-btn" class="backup-btn">Import Data</button>
@@ -133,10 +129,12 @@
             <p><strong>Expenses</strong> are items with a due date and budgeted amount. Check "Recurring" for expenses that repeat each month on the same day.</p>
             <p><strong>Available</strong> = Assets minus Liabilities minus all Expenses.</p>
             <p><strong>Auto Fill</strong> suggests spending allocations based on upcoming due dates and past patterns.</p>
+            <p><strong>Gist Sync</strong> Data is stored locally by default. To sync across devices, create a GitHub Gist named <strong>budget-data.json</strong>, copy the Gist ID from the URL, and generate a GitHub token with the <strong>gist</strong> scope. Enter them above and click <strong>Save</strong>.</p>
           </div>
         </details>
         <div class="actions">
             <button id="gist-modal-close">Close</button>
+            <button id="gist-save-btn">Save</button>
         </div>
       </div>
     </div>
