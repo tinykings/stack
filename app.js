@@ -154,7 +154,7 @@ function renderLists(){
       try {
         const d = new Date(item.due.date + 'T00:00:00');
         dueDisplay = d.toLocaleDateString([], { month: 'short', day: 'numeric' });
-        if (item.due.recurring) dueDisplay += ' (recurring)';
+        if (item.due.recurring) dueDisplay += ' ♻';
       } catch(e) { dueDisplay = item.due.date; }
     }
 
@@ -903,7 +903,7 @@ function showSpendingForm(section, itemId){
   
   modal.innerHTML = `
     <h3>Add spending to "${escapeHtml(item.name)}"</h3>
-    <label>Name<br><input id="_spend_name" type="text" placeholder="e.g. Groceries"></label>
+    <label>Name<br><input id="_spend_name" type="text" placeholder="e.g. Groceries" maxlength="100"></label>
     <label>Amount<br><input id="_spend_amt" type="number" step="0.01" inputmode="decimal" placeholder="0.00"></label>
     <label>Charge to account<br><select id="_spend_account">${accountOptions}</select></label>
     <div class="actions"><button id="_spend_cancel">Cancel</button><button id="_spend_ok">Add</button></div>
@@ -940,14 +940,17 @@ function showSpendingForm(section, itemId){
 
   document.getElementById('_spend_cancel').addEventListener('click', ()=> cleanup());
   document.getElementById('_spend_ok').addEventListener('click', ()=>{
+    const okBtn = document.getElementById('_spend_ok');
+    if (okBtn.disabled) return;
+    okBtn.disabled = true;
     const spendName = document.getElementById('_spend_name').value.trim();
     const spendAmtValue = document.getElementById('_spend_amt').value.trim();
     const spendAmount = spendAmtValue === '' ? 0 : parseFloat(spendAmtValue);
     const chargeAccountId = document.getElementById('_spend_account').value.trim();
     
     clearInlineErrors(modal);
-    if(!spendName){ showInlineError(document.getElementById('_spend_name'), 'Enter a name for the spend'); return; }
-    if(spendAmount <= 0){ showInlineError(document.getElementById('_spend_amt'), 'Enter a valid amount greater than 0'); return; }
+    if(!spendName){ showInlineError(document.getElementById('_spend_name'), 'Enter a name for the spend'); okBtn.disabled = false; return; }
+    if(spendAmount <= 0){ showInlineError(document.getElementById('_spend_amt'), 'Enter a valid amount greater than 0'); okBtn.disabled = false; return; }
 
     // record spent on the item
     addSpending(section, itemId, spendName, spendAmount);
@@ -1113,7 +1116,7 @@ function showItemForm(section, itemId = null) {
 
   modal.innerHTML = `
     <h3>${title}</h3>
-    <label>Name<br><input id="_item_name" type="text" placeholder="Name" value="${isEdit && item ? escapeHtml(item.name) : ''}"></label>
+    <label>Name<br><input id="_item_name" type="text" placeholder="Name" maxlength="100" value="${isEdit && item ? escapeHtml(item.name) : ''}"></label>
     <label>Current Amount<br><input id="_item_amount" type="number" step="0.01" inputmode="decimal" placeholder="0.00" value="${currentAmountValue}"></label>
     ${section !== 'accounts' ? `<label>Needed Amount<br><input id="_item_needed_amount" type="number" step="0.01" inputmode="decimal" placeholder="0.00" value="${isEdit && item && item.neededAmount ? Number(item.neededAmount).toFixed(2) : ''}"></label>` : ''}
     ${dueControlHtml}
@@ -1152,7 +1155,10 @@ function showItemForm(section, itemId = null) {
   });
 
   if (isEdit) {
-    document.getElementById('_item_delete').addEventListener('click', async () => {
+    const delBtn = document.getElementById('_item_delete');
+    if (delBtn) delBtn.addEventListener('click', async () => {
+      if (delBtn.disabled) return;
+      delBtn.disabled = true;
       takeUndoSnapshot('Item deleted');
       await removeItem(section, itemId);
       cleanup();
@@ -1190,6 +1196,9 @@ function showItemForm(section, itemId = null) {
   }
 
   document.getElementById('_item_ok').addEventListener('click', () => {
+    const okBtn = document.getElementById('_item_ok');
+    if (okBtn.disabled) return;
+    okBtn.disabled = true;
     const name = document.getElementById('_item_name').value.trim();
     // Treat blank as 0 for number inputs
     const amountValue = document.getElementById('_item_amount').value.trim();
@@ -1200,6 +1209,7 @@ function showItemForm(section, itemId = null) {
     clearInlineErrors(modal);
     if (!name) {
       showInlineError(document.getElementById('_item_name'), 'Enter a name');
+      okBtn.disabled = false;
       return;
     }
 
@@ -1210,6 +1220,7 @@ function showItemForm(section, itemId = null) {
       const dateVal = document.getElementById('_item_due').value;
       if (!dateVal) {
         showInlineError(document.getElementById('_item_due'), 'Enter a due date');
+        okBtn.disabled = false;
         return;
       }
       due = { date: dateVal, recurring: document.getElementById('_item_recurring').checked };
