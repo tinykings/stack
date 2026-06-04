@@ -80,7 +80,7 @@ body.modal-open {
 .container {
   margin: 0 auto;
   padding: 0;
-  max-width: 1100px;
+  max-width: 760px;
 }
 
 /* .top and .balances removed — dead markup cleaned up */
@@ -97,12 +97,7 @@ body.modal-open {
   body { font-size: 16px; }
 }
 
-@media (min-width: 768px) {
-  .lists { grid-template-columns: repeat(2, 1fr); }
-}
-
 @media (min-width: 1024px) {
-  .lists { grid-template-columns: repeat(4, 1fr); }
   body { padding: var(--space-xl) var(--space-xl) calc(env(safe-area-inset-bottom) + var(--header-height) + var(--space-xl)) var(--space-xl); }
 }
 
@@ -168,40 +163,6 @@ body.modal-open {
   background: var(--amber-glow);
   color: var(--amber);
   border-color: var(--amber-dim);
-}
-
-/* ---- Footer Last Action ---- */
-
-.footer-last-action {
-  font-family: var(--mono);
-  font-size: 11px;
-  color: var(--text-dim);
-  cursor: pointer;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 55vw;
-  margin-top: 2px;
-  letter-spacing: -0.01em;
-}
-
-.history-list {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-}
-
-.history-list li {
-  font-family: var(--mono);
-  font-size: 12px;
-  color: var(--text-secondary);
-  padding: var(--space-sm) 0;
-  border-bottom: 1px solid var(--border);
-  letter-spacing: -0.01em;
-}
-
-.history-list li:last-child {
-  border-bottom: none;
 }
 
 /* ---- Item Cards ---- */
@@ -315,21 +276,6 @@ body.modal-open {
   color: var(--text-dim);
 }
 
-.icon-action-btn.zero {
-  color: var(--green-text);
-}
-
-.icon-action-btn.zero:hover {
-  border-color: var(--green-text);
-  color: var(--green-text);
-}
-
-.icon-action-btn.zero:active {
-  background: rgba(90, 154, 106, 0.12);
-  border-color: var(--green);
-  color: var(--green-text);
-}
-
 /* ---- Progress Bar ---- */
 
 .item-progress {
@@ -342,9 +288,10 @@ body.modal-open {
 }
 
 .item-progress-bar {
+  transition: width 0.4s cubic-bezier(0.25, 1, 0.5, 1);
   height: 100%;
   border-radius: 1px;
-  /* width transition removed — DOM is rebuilt every render, transition never fires */
+  /* width set via JS after DOM insertion so transition fires */
 }
 
 .item-progress-bar.good { background: var(--green); }
@@ -375,6 +322,17 @@ body.modal-open {
   z-index: 9999;
   padding: 0;
   animation: fadeIn 0.15s ease;
+  transition: opacity 0.15s ease;
+}
+
+.modal-overlay.closing {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.modal-overlay.closing .modal {
+  transform: translateY(100%);
+  opacity: 0;
 }
 
 @keyframes fadeIn {
@@ -402,6 +360,7 @@ body.modal-open {
   color: inherit;
   box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.4);
   animation: sheetUp 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: transform 0.15s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.15s ease;
 }
 
 @media (min-width: 600px) {
@@ -418,6 +377,10 @@ body.modal-open {
     max-height: calc(100vh - 40px);
     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
     animation: slideUp 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .modal-overlay.closing .modal {
+    transform: translateY(12px);
+    opacity: 0;
   }
   @keyframes slideUp {
     from { transform: translateY(12px); opacity: 0; }
@@ -547,17 +510,6 @@ body.modal-open {
   flex: 1;
 }
 
-.modal .actions button#_item_paid {
-  background: var(--green);
-  border-color: var(--green);
-  color: var(--bg);
-}
-
-.modal .actions button#_item_paid:hover {
-  background: var(--green-text);
-  border-color: var(--green-text);
-}
-
 .modal .actions button#_item_spend {
   background: var(--blue);
   border-color: var(--blue);
@@ -633,6 +585,10 @@ body.modal-open {
   font-family: var(--font);
   min-height: 44px;
   transition: background 0.15s, opacity 0.15s;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
 }
 
 .gist-buttons button:hover {
@@ -979,16 +935,12 @@ body.modal-open {
   content: "Add an account to start tracking your net worth.";
 }
 
-.list-items[data-section="budget"]:empty::after {
-  content: "No budget items yet. Tap + to create one.";
+.list-items[data-section="expenses"]:empty::after {
+  content: "No expenses yet. Tap + to add an item.";
 }
 
-.list-items[data-section="bills"]:empty::after {
-  content: "No bills yet. Tap + to add a recurring expense.";
-}
-
-.list-items[data-section="goals"]:empty::after {
-  content: "No goals yet. Tap + to set a savings target.";
+.list-items[data-section="history"]:empty::after {
+  content: "No recent activity.";
 }
 
 /* ---- App Title (visually hidden h1) ---- */
@@ -1253,6 +1205,10 @@ body.modal-open {
   border-color: var(--amber);
   color: var(--bg);
   flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
 }
 
 .modal .actions button#_af_fill:hover:not(:disabled) {
@@ -1266,6 +1222,21 @@ body.modal-open {
   color: var(--text-dim);
   cursor: not-allowed;
   opacity: 0.5;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.modal .actions button#_af_fill:disabled::before {
+  content: '';
+  width: 14px;
+  height: 14px;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: btnSpinner 0.6s linear infinite;
+  flex-shrink: 0;
 }
 
 .modal .actions button#_af_cancel {
@@ -1418,6 +1389,21 @@ body.modal-open {
 .gist-controls.gist-loading .gist-buttons button {
   opacity: 0.4;
   pointer-events: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.gist-controls.gist-loading .gist-buttons button::before {
+  content: '';
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--amber);
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: btnSpinner 0.6s linear infinite;
+  flex-shrink: 0;
 }
 
 .gist-controls.gist-loading #status {
@@ -1427,6 +1413,10 @@ body.modal-open {
 @keyframes loadingPulse {
   0%, 100% { opacity: 0.45; }
   50% { opacity: 1; }
+}
+
+@keyframes btnSpinner {
+  to { transform: rotate(360deg); }
 }
 
 /* ---- Animation: Button hover/active feedback ---- */

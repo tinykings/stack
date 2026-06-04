@@ -9,8 +9,7 @@ let state = {
   balances: { checking: 0, savings: 0, credit: 0 },
   accounts: [], // [{id, name, amount, isPositive}]
   items: { accounts: [], budget: [], bills: [], goals: [] },
-  actionHistory: [], // Last 10 actions: [{type, name, section, amount?, date}]
-  disabledSections: [] // List of hidden/disabled sections
+  actionHistory: [] // Last 10 actions: [{type, name, section, amount?, date}]
 };
 let lastAvailableAmount = 0; // New global variable
 let isSavingToGist = false; // Flag to prevent auto-refresh during save
@@ -102,6 +101,7 @@ function loadLocal(){
   if (availableEl && availableEl.textContent) {
     lastAvailableAmount = parseFloat(availableEl.textContent.replace(/[^0-9.-]+/g,"")) || 0;
   }
+  migrateToUnifiedItems();
 }
 function saveLocal(){
   state._lastModified = Date.now();
@@ -111,193 +111,130 @@ function saveLocal(){
 // Render
 
 function renderLists(){
-  ['accounts','budget','bills','goals'].forEach(section=>{
-    const container = document.querySelector(`.list-items[data-section="${section}"]`);
-    const sectionEl = container.closest('.list');
-    
-    // Hide/show the entire section element
-    if (state.disabledSections && state.disabledSections.includes(section)) {
-      if (sectionEl) sectionEl.style.display = 'none';
-      return;
-    } else {
-      if (sectionEl) sectionEl.style.display = 'block';
-    }
-
-    container.innerHTML = '';
-
-    // handle accounts differently (simpler structure)
-    if(section === 'accounts'){
-      const accounts = (state.accounts || []).slice();
-      accounts.sort((a,b)=>(a.name||'').localeCompare(b.name||''));
-      
-      accounts.forEach(acc=>{
-        const div = document.createElement('div');
-        div.className = 'item';
-        
-        const amountClass = acc.isPositive ? 'asset' : 'liability';
-        
-        div.innerHTML = `
-          <div class="item-content item-clickable" data-id="${acc.id}" data-section="accounts" role="button" tabindex="0">
-            <div class="item-info">
-              <div class="item-name">${escapeHtml(acc.name)}</div>
-              <div class="item-amount ${amountClass}">$${Number(acc.amount).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
-            </div>
-          </div>
-        `;
-        
-        container.appendChild(div);
-      });
-      return;
-    }
-
-    // take a shallow copy and sort for display only
-    const items = (state.items[section] || []).slice();
-    const ordinal = (n)=>{
-      const s = ["th","st","nd","rd"], v = n%100;
-      return n + (s[(v-20)%10] || s[v] || s[0]);
-    };
-
-    items.sort((a,b)=>{
-      // budget: alphabetical by name
-      if(section === 'budget'){
-        const na = (a.name||'').toLowerCase(); const nb = (b.name||'').toLowerCase();
-        return na.localeCompare(nb);
-      }
-      // bills: by day-of-month, starting from today
-      if (section === 'bills') {
-        const today = new Date().getDate();
-        const getSortableDay = (item) => {
-          if (item.due && item.due.type === 'day') {
-            const day = Number(item.due.value);
-            // If the day has passed this month, treat it as "next month" for sorting purposes
-            return day < today ? day + 31 : day;
-          }
-          // Place items without a valid due day at the end
-          return 999;
-        };
-        const da = getSortableDay(a);
-        const db = getSortableDay(b);
-        return da - db;
-      }
-      // goals: by date
-      if(section === 'goals'){
-        const pa = (a.due && a.due.type==='date' && a.due.value) ? new Date(a.due.value).getTime() : 9e15;
-        const pb = (b.due && b.due.type==='date' && b.due.value) ? new Date(b.due.value).getTime() : 9e15;
-        return pa - pb;
-      }
-      return 0;
-    });
-
-    items.forEach(item=>{
-      const div = document.createElement('div');
-      div.className = 'item';
-      item.spent = item.spent || [];
-      const totalSpent = item.spent.reduce((a,b)=>a+Number(b.amount||0),0);
-      const remaining = Number(item.amount) - totalSpent;
-      let amountClass = '';
-      if (remaining > 0) {
-        amountClass = 'positive-amount';
-      } else if (remaining < 0) {
-        amountClass = 'liability';
-      }
-
-      // Build due/schedule display
-      let dueDisplay = '-';
-      const d = item.due;
-      if(d){
-        if(typeof d === 'object'){
-          if(d.type === 'recurrence'){
-            dueDisplay = d.value === 'every-check' ? 'Every check' : 'Every month';
-          } else if(d.type === 'day'){
-            const day = Number(d.value) || 0;
-            dueDisplay = ordinal(day);
-          } else if(d.type === 'date'){
-            try{ dueDisplay = new Date(d.value).toLocaleDateString(); }catch(e){ dueDisplay = d.value; }
-          }
-        } else if(typeof d === 'string'){
-          // legacy string (maybe ISO date)
-          if(/^\d{4}-\d{2}-\d{2}$/.test(d)) dueDisplay = new Date(d).toLocaleDateString(); else dueDisplay = d;
-        }
-      }
-
-      // Build metadata (last spend info)
-      const neededAmount = item.neededAmount !== undefined ? item.neededAmount : item.amount;
-      const neededDisplay = `$${Number(neededAmount).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
-      
-      let metaHTML = '';
-      if(item.spent.length > 0){
-        const mostRecent = item.spent[item.spent.length - 1];
-        metaHTML = `
-          <div class="item-meta-row" data-id="${item.id}" data-section="${section}">
-            <span class="meta">${escapeHtml(dueDisplay)} • ${neededDisplay} • ${escapeHtml(mostRecent.name)} (-${Number(mostRecent.amount).toFixed(2)})</span>
-          </div>
-        `;
-      } else {
-        metaHTML = `
-          <div class="item-meta-row" data-id="${item.id}" data-section="${section}">
-            <span class="meta">${escapeHtml(dueDisplay)} • ${neededDisplay}</span>
-          </div>
-        `;
-      }
-
-      // Calculate progress percentage - shows remaining funds (full = all money available)
-      const totalBudget = Number(neededAmount) || 0;
-      const remainingPercent = totalBudget > 0 ? Math.max(0, Math.min(100, (remaining / totalBudget) * 100)) : 0;
-      let progressClass = 'good';
-      if (remainingPercent < 25) progressClass = 'danger';
-      else if (remainingPercent < 50) progressClass = 'warning';
-      
-      const progressLabel = remainingPercent >= 50 ? 'Good progress' : remainingPercent >= 25 ? 'Some progress left' : 'Low progress';
-      const progressHTML = totalBudget > 0 ? `
-        <div class="item-progress" role="progressbar" aria-valuenow="${Math.round(remainingPercent)}" aria-valuemin="0" aria-valuemax="100" aria-label="${progressLabel}">
-          <div class="item-progress-bar ${progressClass}" style="width: ${remainingPercent}%"></div>
+  // --- Accounts ---
+  const accountsContainer = document.querySelector('.list-items[data-section="accounts"]');
+  accountsContainer.innerHTML = '';
+  const accounts = (state.accounts || []).slice();
+  accounts.sort((a,b)=>(a.name||'').localeCompare(b.name||''));
+  accounts.forEach(acc=>{
+    const div = document.createElement('div');
+    div.className = 'item';
+    const amountClass = acc.isPositive ? 'asset' : 'liability';
+    div.innerHTML = `
+      <div class="item-content item-clickable" data-id="${acc.id}" data-section="accounts" role="button" tabindex="0">
+        <div class="item-info">
+          <div class="item-name">${escapeHtml(acc.name)}</div>
+          <div class="item-amount ${amountClass}">$${Number(acc.amount).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
         </div>
-      ` : '';
+      </div>
+    `;
+    accountsContainer.appendChild(div);
+  });
 
-      div.innerHTML = `
-        <div class="item-content item-clickable" data-id="${item.id}" data-section="${section}" role="button" tabindex="0">
-          <div class="item-info">
-            <div class="item-name">${escapeHtml(item.name)}</div>
-            <div class="item-amount ${amountClass}">$${Math.abs(remaining).toFixed(2)}</div>
-          </div>
-          ${metaHTML}
-          ${progressHTML}
+  // --- Expenses (unified) ---
+  const expensesContainer = document.querySelector('.list-items[data-section="expenses"]');
+  expensesContainer.innerHTML = '';
+  const items = (state.items.budget || []).slice();
+
+  items.sort((a, b) => getNextDueTime(a) - getNextDueTime(b));
+
+  items.forEach(item => {
+    const div = document.createElement('div');
+    div.className = 'item';
+    item.spent = item.spent || [];
+    const totalSpent = item.spent.reduce((a,b)=>a+Number(b.amount||0),0);
+    const remaining = Number(item.amount) - totalSpent;
+    let amountClass = '';
+    if (remaining > 0) amountClass = 'positive-amount';
+    else if (remaining < 0) amountClass = 'liability';
+
+    // Due display
+    let dueDisplay = '-';
+    if (item.due && item.due.date) {
+      try {
+        const d = new Date(item.due.date + 'T00:00:00');
+        dueDisplay = d.toLocaleDateString([], { month: 'short', day: 'numeric' });
+        if (item.due.recurring) dueDisplay += ' (recurring)';
+      } catch(e) { dueDisplay = item.due.date; }
+    }
+
+    // Needed display
+    const neededAmount = item.neededAmount !== undefined ? item.neededAmount : item.amount;
+    const neededDisplay = `$${Number(neededAmount).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+
+    let metaHTML = '';
+    if (item.spent.length > 0) {
+      const mostRecent = item.spent[item.spent.length - 1];
+      metaHTML = `
+        <div class="item-meta-row" data-id="${item.id}" data-section="budget">
+          <span class="meta">${escapeHtml(dueDisplay)} • ${neededDisplay} • ${escapeHtml(mostRecent.name)} (-${Number(mostRecent.amount).toFixed(2)})</span>
         </div>
       `;
+    } else {
+      metaHTML = `
+        <div class="item-meta-row" data-id="${item.id}" data-section="budget">
+          <span class="meta">${escapeHtml(dueDisplay)} • ${neededDisplay}</span>
+        </div>
+      `;
+    }
 
-      container.appendChild(div);
+    // Progress bar
+    const totalBudget = Number(neededAmount) || 0;
+    const remainingPercent = totalBudget > 0 ? Math.max(0, Math.min(100, (remaining / totalBudget) * 100)) : 0;
+    let progressClass = 'good';
+    if (remainingPercent < 25) progressClass = 'danger';
+    else if (remainingPercent < 50) progressClass = 'warning';
+    const progressLabel = remainingPercent >= 50 ? 'Good progress' : remainingPercent >= 25 ? 'Some progress left' : 'Low progress';
+    const progressHTML = totalBudget > 0 ? `
+      <div class="item-progress" data-target-width="${remainingPercent}" role="progressbar" aria-valuenow="${Math.round(remainingPercent)}" aria-valuemin="0" aria-valuemax="100" aria-label="${progressLabel}">
+        <div class="item-progress-bar ${progressClass}"></div>
+      </div>
+    ` : '';
+
+    div.innerHTML = `
+      <div class="item-content item-clickable" data-id="${item.id}" data-section="budget" role="button" tabindex="0">
+        <div class="item-info">
+          <div class="item-name">${escapeHtml(item.name)}</div>
+          <div class="item-amount ${amountClass}">$${Math.abs(remaining).toFixed(2)}</div>
+        </div>
+        ${metaHTML}
+        ${progressHTML}
+      </div>
+    `;
+
+    expensesContainer.appendChild(div);
+  });
+
+  // Animate progress bars from 0 to target width
+  requestAnimationFrame(() => {
+    void expensesContainer.offsetHeight;
+    expensesContainer.querySelectorAll('.item-progress').forEach(el => {
+      const w = parseFloat(el.dataset.targetWidth);
+      if (!isNaN(w)) {
+        const bar = el.querySelector('.item-progress-bar');
+        if (bar) bar.style.width = w + '%';
+      }
     });
   });
 }
 
 function computeTotals(){
-  const sum = s => {
-    if (state.disabledSections && state.disabledSections.includes(s)) return 0;
-    return state.items[s].reduce((a,b)=>{
-      const totalSpent = (b.spent||[]).reduce((x,y)=>x+Number(y.amount||0),0);
-      const remaining = Number(b.amount||0) - totalSpent;
-      // Only add positive remaining amounts to the total. Negative amounts are for tracking only.
-      return a + (remaining > 0 ? remaining : 0);
-    }, 0);
-  };
-  const totalBudget = sum('budget');
-  const totalBills = sum('bills');
-  const totalGoals = sum('goals');
-  
-  // calculate accounts total
-  const totalAccounts = (state.disabledSections && state.disabledSections.includes('accounts')) ? 0 : (state.accounts || []).reduce((a, acc) => {
-    const val = Number(acc.amount || 0);
-    if(acc.isPositive) return a + val; // add positive accounts
-    else return a - val; // subtract negative accounts (liabilities)
+  const totalExpenses = (state.items.budget || []).reduce((a,b)=>{
+    const totalSpent = (b.spent||[]).reduce((x,y)=>x+Number(y.amount||0),0);
+    const remaining = Number(b.amount||0) - totalSpent;
+    return a + (remaining > 0 ? remaining : 0);
   }, 0);
-  
-  $('total-budget').textContent = '$' + totalBudget.toFixed(2);
-  $('total-bills').textContent = '$' + totalBills.toFixed(2);
-  $('total-goals').textContent = '$' + totalGoals.toFixed(2);
+
+  const totalAccounts = (state.accounts || []).reduce((a, acc) => {
+    const val = Number(acc.amount || 0);
+    if(acc.isPositive) return a + val;
+    else return a - val;
+  }, 0);
+
+  $('total-expenses').textContent = '$' + totalExpenses.toFixed(2);
   $('total-accounts').textContent = '$' + totalAccounts.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
-  
-  // Available = sum of assets - sum of liabilities - budget - bills - goals
-  const available = totalAccounts - totalBudget - totalBills - totalGoals;
+
+  const available = totalAccounts - totalExpenses;
   
   const availableEl = $('available');
   const currentAvailableAmount = parseFloat(availableEl.textContent.replace(/[^0-9.-]+/g,"")) || 0;
@@ -345,69 +282,133 @@ function formatActionText(action){
   if (action.type === 'spend') {
     return `${prefix}spend ${action.name} -$${action.amount}`;
   }
-  if (action.type === 'zero') {
-    return `${prefix}zero ${action.name}`;
-  }
   if (action.type === 'autofill') {
     return `${prefix}autofill ${action.name} +$${action.amount}`;
   }
   return `${prefix}${action.type} ${action.name}`;
 }
 
-function renderFooterAction(){
-  const el = $('footer-last-action');
-  if (!el) return;
+function renderHistory(){
+  const container = document.querySelector('.list-items[data-section="history"]');
+  if (!container) return;
+  container.innerHTML = '';
   const history = state.actionHistory || [];
-  if (history.length === 0) {
-    el.textContent = '';
-    el.style.display = 'none';
-    return;
-  }
-  el.style.display = '';
-  el.textContent = formatActionText(history[0]);
+  history.forEach(action => {
+    const div = document.createElement('div');
+    div.className = 'item';
+    div.style.cursor = 'default';
+    div.innerHTML = `
+      <div class="item-content">
+        <div class="item-info">
+          <div class="item-name" style="font-family:var(--mono);font-size:12px;color:var(--text-secondary);letter-spacing:-0.01em">${escapeHtml(formatActionText(action))}</div>
+        </div>
+      </div>
+    `;
+    container.appendChild(div);
+  });
 }
 
-function showHistoryModal(){
-  const history = state.actionHistory || [];
-  if (history.length === 0) return;
-
-  const overlay = document.createElement('div'); overlay.className = 'modal-overlay';
-  const modal = document.createElement('div'); modal.className = 'modal'; modal.setAttribute('role', 'dialog'); modal.setAttribute('aria-modal', 'true');
-
-  let listHtml = '<ul class="history-list">';
-  history.forEach(action => {
-    listHtml += `<li>${escapeHtml(formatActionText(action))}</li>`;
-  });
-  listHtml += '</ul>';
-
-  modal.innerHTML = `
-    <h3>Recent Changes</h3>
-    ${listHtml}
-    <div class="actions"><button id="_history_close">Close</button></div>
-  `;
-  overlay.appendChild(modal);
-  document.body.appendChild(overlay);
-
-  document.getElementById('_history_close').addEventListener('click', () => overlay.remove());
-  overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+function closeOverlay(overlay) {
+  overlay.classList.add('closing');
+  setTimeout(() => overlay.remove(), 150);
 }
 
 function render(){ 
   renderLists(); 
   computeTotals(); 
-  renderFooterAction(); 
-  
-  // Update section toggles in settings to match state
-  document.querySelectorAll('.section-toggle').forEach(toggle => {
-    const section = toggle.dataset.section;
-    toggle.checked = !state.disabledSections?.includes(section);
-  });
+  renderHistory(); 
 }
 
 function escapeHtml(text){ return (text+'').replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;","\"":"&quot;"})[c]); }
 
+function formatDate(d) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+function migrateToUnifiedItems() {
+  let changed = false;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  // Migrate budget items: recurrence → date + recurring
+  (state.items.budget || []).forEach(item => {
+    if (item.due && item.due.type === 'recurrence') {
+      if (item.due.value === 'every-month') {
+        item.due = { date: formatDate(new Date(today.getFullYear(), today.getMonth(), 1)), recurring: true };
+      } else {
+        item.due = { date: formatDate(today), recurring: false };
+      }
+      changed = true;
+    }
+  });
+
+  // Migrate bills → budget
+  if (state.items.bills && state.items.bills.length > 0) {
+    state.items.bills.forEach(item => {
+      if (item.due && item.due.type === 'day') {
+        const day = Number(item.due.value);
+        let nextDate = new Date(today.getFullYear(), today.getMonth(), day);
+        if (nextDate < today || nextDate.getDate() !== day) {
+          nextDate = new Date(today.getFullYear(), today.getMonth() + 1, day);
+        }
+        item.due = { date: formatDate(nextDate), recurring: true };
+      } else {
+        item.due = { date: formatDate(today), recurring: false };
+      }
+      item.enableSpending = true;
+      state.items.budget.push(item);
+    });
+    state.items.bills = [];
+    changed = true;
+  }
+
+  // Migrate goals → budget
+  if (state.items.goals && state.items.goals.length > 0) {
+    state.items.goals.forEach(item => {
+      if (item.due && (item.due.type === 'date' || typeof item.due === 'object')) {
+        const dateVal = item.due.value || (typeof item.due === 'object' ? '' : item.due);
+        item.due = { date: dateVal, recurring: false };
+      } else {
+        item.due = { date: formatDate(today), recurring: false };
+      }
+      item.enableSpending = true;
+      state.items.budget.push(item);
+    });
+    state.items.goals = [];
+    changed = true;
+  }
+
+  // Clean up legacy fields
+  delete state.disabledSections;
+
+  if (changed) saveLocal();
+}
+
+function getNextDueTime(item) {
+  if (!item.due || !item.due.date) return Infinity;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  if (item.due.recurring) {
+    const dayOfMonth = new Date(item.due.date).getDate();
+    let next = new Date(today.getFullYear(), today.getMonth(), dayOfMonth);
+    if (next < today || next.getDate() !== dayOfMonth) {
+      next = new Date(today.getFullYear(), today.getMonth() + 1, dayOfMonth);
+    }
+    return next.getTime();
+  }
+
+  const d = new Date(item.due.date + 'T00:00:00');
+  if (isNaN(d.getTime())) return Infinity;
+  if (d < today) return Infinity;
+  return d.getTime();
+}
+
 function getSectionLabel(section){
-  const labels = { accounts: 'account', budget: 'budget', bills: 'bill', goals: 'goal' };
+  const labels = { accounts: 'account', budget: 'expense' };
   return labels[section] || section;
 }
 
@@ -586,28 +587,9 @@ function addSpending(section, itemId, spendName, spendAmount){
   saveLocal();
 }
 
-function zeroItemCurrentAmount(section, itemId){
-  const item = state.items[section].find(i=>i.id===itemId);
-  if(!item) return;
-  const now = new Date().toISOString();
-  const totalSpent = (item.spent || []).reduce((sum, spend) => sum + Number(spend.amount || 0), 0);
-  item.amount = totalSpent;
-  state._lastUpdated = now;
-  state._lastSpend = { section, itemId, name: item.name, amount: 0, date: now, itemName: item.name };
-  recordAction({ type: 'zero', name: item.name, section, amount: 0, date: now });
-  saveLocal();
-  render();
-  autosaveToGist();
-}
-
 // UI wiring
 function setupUI(){
   loadLocal(); render();
-
-  const footerAction = $('footer-last-action');
-  if (footerAction) {
-    footerAction.addEventListener('click', showHistoryModal);
-  }
 
   // per-section add buttons (now includes accounts)
   document.querySelectorAll('.addItemSectionBtn').forEach(btn=>{
@@ -628,8 +610,6 @@ function setupUI(){
         
         if(action === 'spend'){
           showSpendingForm(section, id);
-        } else if(action === 'zero'){
-          zeroItemCurrentAmount(section, id);
         } else if(action === 'edit'){
           showItemForm(section, id);
         }
@@ -675,30 +655,6 @@ function setupUI(){
       gistModal.style.display = 'none';
     });
   }
-
-  // Section visibility toggles
-  const sectionToggles = document.querySelectorAll('.section-toggle');
-  sectionToggles.forEach(toggle => {
-    const section = toggle.dataset.section;
-    // Set initial state from budget state
-    toggle.checked = !state.disabledSections?.includes(section);
-
-    toggle.addEventListener('change', () => {
-      if (!state.disabledSections) state.disabledSections = [];
-      
-      if (toggle.checked) {
-        state.disabledSections = state.disabledSections.filter(s => s !== section);
-      } else {
-        if (!state.disabledSections.includes(section)) {
-          state.disabledSections.push(section);
-        }
-      }
-      
-      saveLocal();
-      render();
-      autosaveToGist();
-    });
-  });
 
   if (gistModal) {
     gistModal.addEventListener('click', e => {
@@ -958,7 +914,7 @@ function showSpendingForm(section, itemId){
   // focus first field
   setTimeout(()=> document.getElementById('_spend_name').focus(), 20);
 
-  function cleanup(){ overlay.remove(); }
+  function cleanup(){ closeOverlay(overlay); }
 
   modal.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') { e.preventDefault(); document.getElementById('_spend_ok').click(); }
@@ -1062,7 +1018,7 @@ function showEditAmountForm(section, itemId, currentAmount) {
   setTimeout(() => document.getElementById('_edit_amount').focus(), 20);
 
   function cleanup() {
-    overlay.remove();
+    closeOverlay(overlay);
   }
 
   modal.addEventListener('keydown', (e) => {
@@ -1120,25 +1076,17 @@ function showItemForm(section, itemId = null) {
   if (section === 'accounts') {
     const isChecked = isEdit ? item.isPositive : true;
     dueControlHtml = `<label><input id="_item_due" type="checkbox" ${isChecked ? 'checked' : ''}> Asset (unchecked=debt)</label>`;
-  } else if (section === 'budget') {
-    const selected = isEdit && item && item.due ? item.due.value : 'every-month';
+  } else {
+    const dueDate = isEdit && item && item.due ? item.due.date || '' : '';
+    const recurring = isEdit && item && item.due ? !!item.due.recurring : false;
     dueControlHtml = `
-      <label>Recurrence<br>
-        <select id="_item_due">
-          <option value="every-month" ${selected === 'every-month' ? 'selected' : ''}>Every month</option>
-          <option value="every-check" ${selected === 'every-check' ? 'selected' : ''}>Every check</option>
-        </select>
-      </label>`;
-  } else if (section === 'bills') {
-    const value = isEdit && item && item.due ? item.due.value : '';
-    dueControlHtml = `<label>Day of month<br><input id="_item_due" type="number" min="1" max="31" inputmode="numeric" placeholder="1-31" value="${value}"></label>`;
-  } else if (section === 'goals') {
-    const value = isEdit && item && item.due ? item.due.value : '';
-    dueControlHtml = `<label>Date<br><input id="_item_due" type="date" value="${value}"></label>`;
+      <label>Due Date<br><input id="_item_due" type="date" value="${dueDate}"></label>
+      <label class="toggle-label"><input type="checkbox" id="_item_recurring" ${recurring ? 'checked' : ''}> Recurring (same day each month)</label>
+    `;
   }
 
   let historyHtml = '';
-  if (isEdit && ['budget', 'bills', 'goals'].includes(section) && item.spent && item.spent.length > 0) {
+  if (isEdit && section !== 'accounts' && item.spent && item.spent.length > 0) {
     historyHtml = '<h4>Spend History</h4><ul class="spend-history-list">';
     for (let index = item.spent.length - 1; index >= 0; index--) {
       const spend = item.spent[index];
@@ -1173,8 +1121,7 @@ function showItemForm(section, itemId = null) {
     <div class="actions">
       ${isEdit ? '<button id="_item_delete" class="delBtn">Delete</button>' : ''}
       <button id="_item_cancel">Cancel</button>
-      ${isEdit && ['budget', 'goals'].includes(section) ? '<button id="_item_spend" class="spendBtn">Spend</button>' : ''}
-      ${isEdit && section === 'bills' ? '<button id="_item_paid" class="paidBtn">Paid</button>' : ''}
+      ${isEdit && section !== 'accounts' ? '<button id="_item_spend" class="spendBtn">Spend</button>' : ''}
       <button id="_item_ok">${isEdit ? 'Save' : 'Add'}</button>
     </div>
   `;
@@ -1184,7 +1131,7 @@ function showItemForm(section, itemId = null) {
   setTimeout(() => document.getElementById('_item_name').focus(), 20);
 
   function cleanup() {
-    overlay.remove();
+    closeOverlay(overlay);
   }
 
   modal.addEventListener('keydown', (e) => {
@@ -1205,20 +1152,6 @@ function showItemForm(section, itemId = null) {
   });
 
   if (isEdit) {
-    if (['budget', 'goals'].includes(section)) {
-      document.getElementById('_item_spend').addEventListener('click', async () => {
-        showSpendingForm(section, itemId);
-        cleanup();
-      });
-    }
-
-    if (section === 'bills') {
-      document.getElementById('_item_paid').addEventListener('click', async () => {
-        zeroItemCurrentAmount(section, itemId);
-        cleanup();
-      });
-    }
-
     document.getElementById('_item_delete').addEventListener('click', async () => {
       takeUndoSnapshot('Item deleted');
       await removeItem(section, itemId);
@@ -1226,6 +1159,16 @@ function showItemForm(section, itemId = null) {
       showUndoToast();
       scheduleUndoClear();
     });
+
+    if (section !== 'accounts') {
+      const spendBtn = document.getElementById('_item_spend');
+      if (spendBtn) {
+        spendBtn.addEventListener('click', async () => {
+          overlay.remove(); // instant remove when transitioning to spend modal
+          showSpendingForm(section, itemId);
+        });
+      }
+    }
 
     // Handle delete spend item buttons
     document.querySelectorAll('.delete-spend-btn').forEach(btn => {
@@ -1263,17 +1206,13 @@ function showItemForm(section, itemId = null) {
     let due;
     if (section === 'accounts') {
       due = document.getElementById('_item_due').checked;
-    } else if (section === 'budget') {
-      due = { type: 'recurrence', value: document.getElementById('_item_due').value };
-    } else if (section === 'bills') {
-      const day = parseInt(document.getElementById('_item_due').value);
-      if (isNaN(day) || day < 1 || day > 31) {
-        showInlineError(document.getElementById('_item_due'), 'Enter a valid day 1-31');
+    } else {
+      const dateVal = document.getElementById('_item_due').value;
+      if (!dateVal) {
+        showInlineError(document.getElementById('_item_due'), 'Enter a due date');
         return;
       }
-      due = { type: 'day', value: day };
-    } else if (section === 'goals') {
-      due = { type: 'date', value: document.getElementById('_item_due').value };
+      due = { date: dateVal, recurring: document.getElementById('_item_recurring').checked };
     }
 
     if (isEdit) {
@@ -1300,14 +1239,6 @@ function showItemForm(section, itemId = null) {
 
 // ============ PAYCHECK AUTOFILL ============
 
-
-function getNextBillDueDate(dayOfMonth) {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const thisMonth = new Date(today.getFullYear(), today.getMonth(), dayOfMonth);
-  if (thisMonth >= today) return thisMonth;
-  return new Date(today.getFullYear(), today.getMonth() + 1, dayOfMonth);
-}
 
 function checksUntilDate(dueDate, freq, startDateStr) {
   const today = new Date();
@@ -1359,48 +1290,31 @@ function getItemRemaining(item) {
 
 function getAutoFillItems() {
   const eligible = [];
-  const isDisabled = s => state.disabledSections && state.disabledSections.includes(s);
 
-  // Bills: all with remaining gap, sorted by upcoming due date
-  if (!isDisabled('bills')) {
-    (state.items.bills || []).forEach(item => {
-      if (!item.due || item.due.type !== 'day') return;
-      const dueDay = Number(item.due.value);
-      const nextDue = getNextBillDueDate(dueDay);
-      const remaining = getItemRemaining(item);
-      const needed = Number(item.neededAmount || item.amount || 0);
-      const gap = needed - remaining;
-      if (gap > 0.005) eligible.push({ item, section: 'bills', gap, dueDate: nextDue });
-    });
-  }
+  (state.items.budget || []).forEach(item => {
+    const remaining = getItemRemaining(item);
+    const needed = Number(item.neededAmount || item.amount || 0);
+    const gap = needed - remaining;
+    if (gap <= 0.005) return;
 
-  // Goals: all with remaining gap
-  if (!isDisabled('goals')) {
-    (state.items.goals || []).forEach(item => {
-      if (!item.due || item.due.type !== 'date' || !item.due.value) return;
-      const [y, m, d] = item.due.value.split('-').map(Number);
-      const dueDate = new Date(y, m - 1, d);
-      const remaining = getItemRemaining(item);
-      const needed = Number(item.neededAmount || item.amount || 0);
-      const gap = needed - remaining;
-      if (gap > 0.005) eligible.push({ item, section: 'goals', gap, dueDate });
-    });
-  }
-
-  // Budget: every-check always; every-month if not fully funded
-  if (!isDisabled('budget')) {
-    (state.items.budget || []).forEach(item => {
-      if (!item.due || item.due.type !== 'recurrence') return;
-      const remaining = getItemRemaining(item);
-      const needed = Number(item.neededAmount || item.amount || 0);
-      const gap = needed - remaining;
-      if (gap <= 0.005) return;
-      const recurrence = item.due.value;
-      if (recurrence === 'every-check' || recurrence === 'every-month') {
-        eligible.push({ item, section: 'budget', gap, recurrence });
+    let dueDate = null;
+    if (item.due && item.due.date) {
+      if (item.due.recurring) {
+        const dayOfMonth = new Date(item.due.date).getDate();
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        let next = new Date(today.getFullYear(), today.getMonth(), dayOfMonth);
+        if (next < today || next.getDate() !== dayOfMonth) {
+          next = new Date(today.getFullYear(), today.getMonth() + 1, dayOfMonth);
+        }
+        dueDate = next;
+      } else {
+        dueDate = new Date(item.due.date + 'T00:00:00');
       }
-    });
-  }
+    }
+
+    eligible.push({ item, section: 'budget', gap, dueDate });
+  });
 
   return eligible;
 }
@@ -1486,7 +1400,7 @@ function showAutofillModal() {
       return;
     }
 
-    // Compute per-check amount: bills/goals divide gap by checks until due; budget fills fully
+    // Compute per-check amount: items with due dates divide gap by checks until due
     const withPerCheck = eligible.map(e => {
       let perCheckGap;
       if (e.dueDate) {
@@ -1498,11 +1412,7 @@ function showAutofillModal() {
       return { ...e, perCheckGap };
     });
 
-    // Allocate available funds in priority order:
-    // 1. Budget every-check  2. Dated items by due date  3. Budget every-month
     const dueSortKey = e => {
-      if (e.section === 'budget' && e.recurrence === 'every-check') return -Infinity;
-      if (e.section === 'budget' && e.recurrence === 'every-month') return Infinity;
       return e.dueDate ? e.dueDate.getTime() : 0;
     };
     let available = lastAvailableAmount;
@@ -1513,28 +1423,16 @@ function showAutofillModal() {
       affordMap.set(e.item.id, canAfford);
     });
 
-    const bySection = { bills: [], budget: [], goals: [] };
-    withPerCheck.forEach(e => bySection[e.section].push(e));
-    const sectionNames = { bills: 'Bills', budget: 'Budget', goals: 'Goals' };
-
     let html = `<div class="autofill-header">Items to Fund</div><div class="autofill-list">`;
-    ['bills', 'budget', 'goals'].forEach(sec => {
-      if (!bySection[sec].length) return;
-      html += `<div class="autofill-section-label">${sectionNames[sec]}</div>`;
-      bySection[sec].forEach(({ item, perCheckGap, dueDate, recurrence }) => {
-        let meta = '';
-        if (dueDate) {
-          const checks = checksUntilDate(dueDate, freq, startDate);
-          const dueFmt = dueDate.toLocaleDateString([], { month: 'short', day: 'numeric' });
-          meta = `${dueFmt} · ${checks} check${checks !== 1 ? 's' : ''}`;
-        } else if (recurrence === 'every-check') {
-          meta = 'every check';
-        } else if (recurrence === 'every-month') {
-          meta = 'every month';
-        }
-        const affordable = affordMap.get(item.id) !== false;
-        html += buildItemRow(item, perCheckGap, meta, affordable, affordable);
-      });
+    withPerCheck.forEach(({ item, perCheckGap, dueDate }) => {
+      let meta = '';
+      if (dueDate) {
+        const checks = checksUntilDate(dueDate, freq, startDate);
+        const dueFmt = dueDate.toLocaleDateString([], { month: 'short', day: 'numeric' });
+        meta = `${dueFmt} · ${checks} check${checks !== 1 ? 's' : ''}`;
+      }
+      const affordable = affordMap.get(item.id) !== false;
+      html += buildItemRow(item, perCheckGap, meta, affordable, affordable);
     });
     html += `</div>`;
 
@@ -1563,7 +1461,7 @@ function showAutofillModal() {
   document.getElementById('_af_frequency').addEventListener('change', renderItems);
   document.getElementById('_af_start_date').addEventListener('change', renderItems);
 
-  function cleanup() { overlay.remove(); }
+  function cleanup() { closeOverlay(overlay); }
   document.getElementById('_af_cancel').addEventListener('click', cleanup);
   overlay.addEventListener('click', e => { if (e.target === overlay) cleanup(); });
 
@@ -1577,13 +1475,10 @@ function showAutofillModal() {
       const id = cb.dataset.id;
       const gap = parseFloat(cb.dataset.gap) || 0;
       if (gap <= 0) return;
-      for (const sec of ['bills', 'budget', 'goals']) {
-        const item = (state.items[sec] || []).find(i => i.id === id);
-        if (item) {
-          item.amount = (Number(item.amount) || 0) + gap;
-          recordAction({ type: 'autofill', name: item.name, amount: gap.toFixed(2), date: new Date().toISOString() });
-          break;
-        }
+      const item = (state.items.budget || []).find(i => i.id === id);
+      if (item) {
+        item.amount = (Number(item.amount) || 0) + gap;
+        recordAction({ type: 'autofill', name: item.name, amount: gap.toFixed(2), date: new Date().toISOString() });
       }
     });
 

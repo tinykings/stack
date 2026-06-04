@@ -65,17 +65,13 @@
         <h2>Accounts <span class="section-total" id="total-accounts">$0.00</span> <button class="addItemSectionBtn" data-section="accounts" aria-label="Add account">＋</button></h2>
         <div class="list-items" data-section="accounts"></div>
       </div>
-      <div class="list" id="budgetList">
-        <h2>Budget <span class="section-total" id="total-budget">$0.00</span>       <button class="addItemSectionBtn" data-section="budget" aria-label="Add budget item">＋</button></h2>
-        <div class="list-items" data-section="budget"></div>
+      <div class="list" id="expensesList">
+        <h2>Expenses <span class="section-total" id="total-expenses">$0.00</span> <button class="addItemSectionBtn" data-section="budget" aria-label="Add expense">＋</button></h2>
+        <div class="list-items" data-section="expenses"></div>
       </div>
-      <div class="list" id="billsList">
-          <h2>Bills <span class="section-total" id="total-bills">$0.00</span> <button class="addItemSectionBtn" data-section="bills" aria-label="Add bill">＋</button></h2>
-        <div class="list-items" data-section="bills"></div>
-      </div>
-      <div class="list" id="goalsList">
-          <h2>Goals <span class="section-total" id="total-goals">$0.00</span> <button class="addItemSectionBtn" data-section="goals" aria-label="Add goal">＋</button></h2>
-        <div class="list-items" data-section="goals"></div>
+      <div class="list" id="historyList">
+        <h2>History</h2>
+        <div class="list-items" data-section="history"></div>
       </div>
     </section>
 
@@ -85,7 +81,6 @@
                 <span class="available-label">Available</span>
                 <span id="available">$0.00</span>
             </div>
-            <div id="footer-last-action" class="footer-last-action" style="display:none;"></div>
         </div>
         <div class="footer-right">
             <button id="autofill-btn" class="icon-btn" title="Auto Fill" aria-label="Auto Fill">⚡</button>
@@ -118,15 +113,6 @@
           <li>Generate a GitHub token with the <strong>gist</strong> scope</li>
           <li>Enter the ID and token above, then click <strong>Save</strong></li>
         </ol>
-        <div class="settings-section">
-          <h4>Visible Sections</h4>
-          <div class="section-visibility-list">
-            <label><input type="checkbox" class="section-toggle" data-section="accounts" checked> Accounts</label>
-            <label><input type="checkbox" class="section-toggle" data-section="budget" checked> Budget</label>
-            <label><input type="checkbox" class="section-toggle" data-section="bills" checked> Bills</label>
-            <label><input type="checkbox" class="section-toggle" data-section="goals" checked> Goals</label>
-          </div>
-        </div>
         <div class="backup-section">
             <h4>Backup & Restore</h4>
             <div class="backup-buttons">
@@ -144,11 +130,9 @@
           <summary>How Stack Works</summary>
           <div class="help-content">
             <p><strong>Accounts</strong> track your assets and debts. Positive amounts are assets, negative are liabilities.</p>
-            <p><strong>Budget</strong> items recur monthly or per paycheck. Set an amount and track spending against it.</p>
-            <p><strong>Bills</strong> are due on a specific day each month. Mark them paid to track cash flow.</p>
-            <p><strong>Goals</strong> have a target date and amount. Track progress toward savings targets.</p>
-            <p><strong>Available</strong> = Assets minus Liabilities minus all Budgets, Bills, and Goals.</p>
-            <p><strong>Auto Fill</strong> suggests spending allocations for the current month based on past patterns.</p>
+            <p><strong>Expenses</strong> are items with a due date and budgeted amount. Check "Recurring" for expenses that repeat each month on the same day.</p>
+            <p><strong>Available</strong> = Assets minus Liabilities minus all Expenses.</p>
+            <p><strong>Auto Fill</strong> suggests spending allocations based on upcoming due dates and past patterns.</p>
           </div>
         </details>
         <div class="actions">
