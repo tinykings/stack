@@ -708,12 +708,17 @@ function setupUI(){
 
   const gistModal = $('gist-modal');
   const syncBtn = $('sync-btn');
+  const landingSettingsBtn = $('landing-settings-btn');
   const gistModalClose = $('gist-modal-close');
 
+  const openGistModal = () => { gistModal.style.display = 'flex'; };
+
   if (syncBtn) {
-    syncBtn.addEventListener('click', () => {
-      gistModal.style.display = 'flex';
-    });
+    syncBtn.addEventListener('click', openGistModal);
+  }
+
+  if (landingSettingsBtn) {
+    landingSettingsBtn.addEventListener('click', openGistModal);
   }
 
   const gistSaveBtn = $('gist-save-btn');
@@ -728,11 +733,11 @@ function setupUI(){
         || (state.actionHistory && state.actionHistory.length > 0);
 
       if (!hasLocalData) {
-        await loadFromGist();
+        await loadFromGist(false, true);
       } else {
         const choice = await showSyncChoiceDialog();
         if (choice === 'save') await saveToGist(false);
-        else if (choice === 'load') await loadFromGist();
+        else if (choice === 'load') await loadFromGist(false, true);
       }
     });
   }
@@ -885,7 +890,7 @@ async function autosaveToGist(){
   }
 }
 
-async function loadFromGist(silent = false){
+async function loadFromGist(silent = false, force = false){
   // Don't load while a save is in progress
   if (isSavingToGist) return;
 
@@ -924,8 +929,8 @@ async function loadFromGist(silent = false){
       const content = file.content;
       try{
         const parsed = JSON.parse(content);
-        // Don't overwrite if local state was modified more recently
-        if (state._lastModified && parsed._lastModified && parsed._lastModified < state._lastModified) {
+        // Don't overwrite if local state was modified more recently (unless forced)
+        if (!force && state._lastModified && parsed._lastModified && parsed._lastModified < state._lastModified) {
           return;
         }
         state = parsed;

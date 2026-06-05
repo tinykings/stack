@@ -176,6 +176,12 @@ body.modal-open {
   outline-offset: 3px;
 }
 
+#landing-settings-btn {
+  position: fixed;
+  bottom: calc(var(--space-lg) + env(safe-area-inset-bottom));
+  right: var(--space-lg);
+}
+
 /* ---- Grid ---- */
 
 .lists {
