@@ -13,7 +13,7 @@
   <link rel="manifest" href="manifest.json">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;500;600;700&family=Bebas+Neue&display=swap">
   <link rel="stylesheet" href="style.css">
   <link rel="icon" type="image/png" sizes="32x32" href="images/icon-192.png">
   <link rel="icon" type="image/png" sizes="16x16" href="images/icon-192.png">
@@ -57,9 +57,10 @@
 
   <div id="landing">
     <div class="landing-inner">
-      <h1 class="landing-title">STACK</h1>
-      <p class="landing-tagline">manage your cash<br>in stacks</p>
-      <button class="landing-arrow" aria-label="Get started">→</button>
+      <div class="landing-main">
+        <h1 class="landing-title" tabindex="0" role="button" aria-label="Get started">STACK</h1>
+      </div>
+      <p class="landing-tagline">a simple budget app</p>
     </div>
   </div>
 
@@ -91,8 +92,8 @@
             </div>
         </div>
         <div class="footer-right">
-            <button id="autofill-btn" class="icon-btn" title="Auto Fill" aria-label="Auto Fill">⚡</button>
-            <button id="sync-btn" class="icon-btn" title="Settings" aria-label="Settings">⚙️</button>
+            <button id="autofill-btn" class="icon-btn" data-tip="Auto Fill" aria-label="Auto Fill"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16l-2 14H6L4 5z"/><path d="M7 5V3a4 4 0 018 0v2"/><path d="M15 19l3 3"/><circle cx="18.5" cy="22.5" r="1"/></svg></button>
+            <button id="sync-btn" class="icon-btn" data-tip="Settings" aria-label="Settings"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v3M12 20v3M1 12h3M20 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1l2.1-2.1M17 7l2.1-2.1"/></svg></button>
         </div>
     </div>
 

@@ -30,6 +30,7 @@
 
   --font: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
   --mono: 'JetBrains Mono', 'SF Mono', 'Fira Code', monospace;
+  --display: 'Bebas Neue', 'Impact', 'Arial Black', sans-serif;
   --header-height: 68px;
   --radius: 4px;
   --radius-md: 6px;
@@ -92,7 +93,7 @@ body.modal-open {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--bg);
+  background: var(--bg) url('images/backdrop.jpg') center/cover no-repeat;
   padding: var(--space-xl);
   transition: opacity 0.3s ease;
 }
@@ -107,17 +108,31 @@ body.modal-open {
   flex-direction: column;
   align-items: center;
   gap: var(--space-xl);
+  height: 100%;
+}
+
+.landing-main {
+  flex: 1;
+  display: flex;
+  align-items: center;
 }
 
 .landing-title {
-  font-family: var(--font);
-  font-size: clamp(48px, 12vw, 88px);
-  font-weight: 900;
-  letter-spacing: 0.12em;
+  font-family: var(--display);
+  font-size: clamp(120px, 28vw, 220px);
+  font-weight: 400;
+  letter-spacing: 0.06em;
   color: var(--text);
   line-height: 1;
   margin: 0;
   text-transform: uppercase;
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+
+.landing-title:hover,
+.landing-title:focus-visible {
+  color: var(--amber);
 }
 
 .landing-tagline {
@@ -255,7 +270,7 @@ body.modal-open {
   border: 1px solid transparent;
 }
 
-.item:hover {
+.item:not(.item-readonly):hover {
   border-color: var(--border);
 }
 
@@ -266,6 +281,10 @@ body.modal-open {
   gap: 4px;
   min-width: 0;
   cursor: pointer;
+}
+
+.item-readonly .item-content {
+  cursor: default;
 }
 
 .item .item-info {
@@ -598,28 +617,28 @@ body.modal-open {
 .modal .actions button#_item_ok,
 .modal .actions button#_spend_ok,
 #gist-save-btn {
-  background: var(--amber);
-  border-color: var(--amber);
+  background: var(--amber-dim);
+  border-color: var(--amber-dim);
   color: var(--bg);
   flex: 1;
 }
 
 .modal .actions button#_item_spend {
-  background: var(--blue);
-  border-color: var(--blue);
+  background: #4a5a6a;
+  border-color: #4a5a6a;
   color: var(--bg);
 }
 
 .modal .actions button#_item_spend:hover {
-  background: var(--blue-text);
-  border-color: var(--blue-text);
+  background: #3a4a5a;
+  border-color: #3a4a5a;
 }
 
 .modal .actions button#_item_ok:hover,
 .modal .actions button#_spend_ok:hover,
 #gist-save-btn:hover {
-  background: var(--amber-dim);
-  border-color: var(--amber-dim);
+  background: #8a7a3a;
+  border-color: #8a7a3a;
 }
 
 .modal .actions button#_item_cancel,
@@ -806,6 +825,10 @@ body.onboarding .footer-bar {
   display: none;
 }
 
+#landing:not(.hidden) ~ .container .footer-bar {
+  display: none;
+}
+
 .icon-btn {
   appearance: none;
   border: 1px solid var(--border);
@@ -825,14 +848,43 @@ body.onboarding .footer-bar {
 }
 
 .icon-btn:hover {
-  border-color: var(--border-light);
-  color: var(--text);
+  border-color: var(--amber-dim);
+  color: var(--amber);
+}
+
+.icon-btn {
+  position: relative;
 }
 
 .icon-btn:active {
   background: var(--amber-glow);
   border-color: var(--amber-dim);
   color: var(--amber);
+}
+
+.icon-btn::after {
+  content: attr(data-tip);
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--surface-up);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 4px 8px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-dim);
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s;
+  font-family: var(--mono);
+}
+
+.icon-btn:hover::after,
+.icon-btn:focus-visible::after {
+  opacity: 1;
 }
 
 /* ---- Inline Error ---- */
@@ -1004,7 +1056,7 @@ body.onboarding .footer-bar {
 /* ---- Touch Feedback ---- */
 
 @media (hover: none) {
-  .item:active {
+  .item:not(.item-readonly):active {
     background: var(--surface-up);
   }
   .icon-btn:active,
@@ -1452,17 +1504,27 @@ body.onboarding .footer-bar {
   border-color: var(--border-light);
 }
 
+#_confirm_yes:hover {
+  background: var(--amber-dim);
+  border-color: var(--amber-dim);
+}
+
+#_confirm_no:hover {
+  background: var(--surface-up);
+  border-color: var(--border-light);
+}
+
 /* ---- Animation: Item card hover ---- */
 
 .item {
   transition: background 0.1s, border-color 0.15s, transform 0.08s cubic-bezier(0.25, 1, 0.5, 1);
 }
 
-.item:hover {
+.item:not(.item-readonly):hover {
   border-color: var(--border-light);
 }
 
-.item:active {
+.item:not(.item-readonly):active {
   transform: scale(0.98);
 }
 

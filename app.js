@@ -303,8 +303,7 @@ function renderHistory(){
   const history = state.actionHistory || [];
   history.forEach(action => {
     const div = document.createElement('div');
-    div.className = 'item';
-    div.style.cursor = 'default';
+    div.className = 'item item-readonly';
     div.innerHTML = `
       <div class="item-content">
         <div class="item-info">
@@ -636,9 +635,9 @@ function setupUI(){
   loadLocal(); render();
 
   // Landing page onboarding
-  const landingArrow = document.querySelector('.landing-arrow');
-  if (landingArrow) {
-    landingArrow.addEventListener('click', () => {
+  const landingTitle = document.querySelector('.landing-title');
+  if (landingTitle) {
+    const startOnboarding = () => {
       document.body.classList.add('onboarding');
       document.getElementById('landing').classList.add('hidden');
       showItemForm('accounts', null, () => {
@@ -652,6 +651,13 @@ function setupUI(){
           document.getElementById('landing').classList.remove('hidden');
         }
       });
+    };
+    landingTitle.addEventListener('click', startOnboarding);
+    landingTitle.addEventListener('keydown', e => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        startOnboarding();
+      }
     });
   }
 
@@ -1275,7 +1281,7 @@ function showItemForm(section, itemId = null, onSaved = null, okLabel = null, on
     });
   }
 
-  document.getElementById('_item_ok').addEventListener('click', () => {
+  document.getElementById('_item_ok').addEventListener('click', async () => {
     const okBtn = document.getElementById('_item_ok');
     if (okBtn.disabled) return;
     okBtn.disabled = true;
@@ -1311,6 +1317,16 @@ function showItemForm(section, itemId = null, onSaved = null, okLabel = null, on
       if (section !== 'accounts') {
         const oldRemaining = Number(item.amount) - (item.spent || []).reduce((a, b) => a + Number(b.amount || 0), 0);
         if (Math.abs(newAmount - oldRemaining) > 0.001) {
+          const hasSpending = item.spent && item.spent.length > 0;
+          if (hasSpending) {
+            okBtn.disabled = false;
+            const confirmed = await showConfirmDialog('Changing the amount will reset all spending history for this item. Continue?');
+            okBtn.disabled = true;
+            if (!confirmed) {
+              okBtn.disabled = false;
+              return;
+            }
+          }
           // Amount changed - update with new amount and reset spent
           updateItemAmountAndResetSpent(section, itemId, newAmount);
         }
