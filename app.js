@@ -1689,7 +1689,7 @@ function setupAutoRefresh() {
 
 // Register service worker
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('./sw.js');
+  navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' });
 }
 
 // Lock body scroll when any modal overlay is visible
