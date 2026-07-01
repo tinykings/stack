@@ -11,7 +11,7 @@
 
 ## Features
 
-- **Accounts** - Track assets (checking, savings) and liabilities (credit cards, loans). Net worth is computed automatically.
+- **Accounts ** - Track assets (checking, savings) and liabilities (credit cards, loans). Net worth is computed automatically.
 - **Expenses** - Track envelope-style expense items with a current amount, needed amount, due date, optional monthly recurrence, spending history, and progress bar.
 - **Available** - A running total showing `(assets - liabilities) - remaining expenses`, animated on change.
 - **Spending** - Log individual purchases against any expense item. Optionally charge the purchase to an account at the same time to keep balances accurate.
