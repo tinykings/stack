@@ -53,6 +53,7 @@ function loadLocal(){
     try{ state = JSON.parse(raw); } 
     catch(e){ console.warn('Invalid local data', e); }
   }
+  normalizeStateShape();
   // Sync paySchedule from state to localStorage
   if (state.paySchedule) {
     if (state.paySchedule.frequency) {
@@ -341,7 +342,34 @@ function formatDate(d) {
   return `${y}-${m}-${day}`;
 }
 
-function migrateToUnifiedItems() {
+function parseLocalDate(dateStr) {
+  if (typeof dateStr === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+    const [y, m, d] = dateStr.split('-').map(Number);
+    return new Date(y, m - 1, d);
+  }
+  return new Date(dateStr);
+}
+
+function getDueDayOfMonth(dateStr) {
+  const parsed = parseLocalDate(dateStr);
+  return Number.isNaN(parsed.getTime()) ? NaN : parsed.getDate();
+}
+
+function normalizeStateShape() {
+  if (!state || typeof state !== 'object') state = {};
+  if (!state.balances || typeof state.balances !== 'object') {
+    state.balances = { checking: 0, savings: 0, credit: 0 };
+  }
+  if (!Array.isArray(state.accounts)) state.accounts = [];
+  if (!state.items || typeof state.items !== 'object') state.items = {};
+  ['accounts', 'budget', 'bills', 'goals'].forEach(section => {
+    if (!Array.isArray(state.items[section])) state.items[section] = [];
+  });
+  if (!Array.isArray(state.actionHistory)) state.actionHistory = [];
+}
+
+function migrateToUnifiedItems(persist = true) {
+  normalizeStateShape();
   let changed = false;
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -397,7 +425,8 @@ function migrateToUnifiedItems() {
   // Clean up legacy fields
   delete state.disabledSections;
 
-  if (changed) saveLocal();
+  if (changed && persist) saveLocal();
+  return changed;
 }
 
 function getNextDueTime(item) {
@@ -406,7 +435,8 @@ function getNextDueTime(item) {
   today.setHours(0, 0, 0, 0);
 
   if (item.due.recurring) {
-    const dayOfMonth = new Date(item.due.date).getDate();
+    const dayOfMonth = getDueDayOfMonth(item.due.date);
+    if (Number.isNaN(dayOfMonth)) return Infinity;
     let next = new Date(today.getFullYear(), today.getMonth(), dayOfMonth);
     if (next < today || next.getDate() !== dayOfMonth) {
       next = new Date(today.getFullYear(), today.getMonth() + 1, dayOfMonth);
@@ -799,7 +829,7 @@ function setupUI(){
           const importedData = JSON.parse(event.target.result);
           
           // Validate basic structure
-          if (typeof importedData !== 'object') {
+          if (!importedData || typeof importedData !== 'object' || Array.isArray(importedData)) {
             throw new Error('Invalid backup file format');
           }
 
@@ -807,7 +837,9 @@ function setupUI(){
             const confirmed = await showConfirmDialog('This will replace all your current data with the imported backup. Are you sure?');
             if (!confirmed) return;
             takeUndoSnapshot('Data imported');
-            Object.assign(state, importedData);
+            state = importedData;
+            normalizeStateShape();
+            migrateToUnifiedItems(false);
             saveLocal();
             render();
             setStatus('Data imported successfully!');
@@ -934,6 +966,8 @@ async function loadFromGist(silent = false, force = false){
           return;
         }
         state = parsed;
+        normalizeStateShape();
+        migrateToUnifiedItems(false);
         // Sync paySchedule from state to localStorage
         if (state.paySchedule) {
           if (state.paySchedule.frequency) {
@@ -978,7 +1012,7 @@ function setStatus(msg, isError=false){
 }
 
 // Show a modal/form for adding spending to an item
-function showSpendingForm(section, itemId){
+function showSpendingForm(section, itemId, onSaved = null){
   const item = state.items[section].find(i=>i.id===itemId);
   if(!item) return;
 
@@ -1417,7 +1451,8 @@ function getAutoFillItems() {
     let dueDate = null;
     if (item.due && item.due.date) {
       if (item.due.recurring) {
-        const dayOfMonth = new Date(item.due.date).getDate();
+        const dayOfMonth = getDueDayOfMonth(item.due.date);
+        if (Number.isNaN(dayOfMonth)) return;
         const today = new Date();
         today.setHours(0, 0, 0, 0);
         let next = new Date(today.getFullYear(), today.getMonth(), dayOfMonth);
@@ -1578,9 +1613,8 @@ function showAutofillModal() {
   document.getElementById('_af_frequency').addEventListener('change', renderItems);
   document.getElementById('_af_start_date').addEventListener('change', renderItems);
 
-  function cleanup(canceled) {
+  function cleanup() {
     closeOverlay(overlay);
-    if (canceled && onCancel) onCancel();
   }
   document.getElementById('_af_cancel').addEventListener('click', cleanup);
   overlay.addEventListener('click', e => { if (e.target === overlay) cleanup(); });

@@ -10,7 +10,7 @@ Casual budgeters who want straightforward expense tracking without bank connecti
 
 ## Product Purpose
 
-A lightweight, privacy-first budgeting PWA for tracking accounts, budgets, bills, and savings goals. Data stays on-device (localStorage) with optional GitHub Gist sync for cross-device access. No bank links, no AI, no subscriptions — just envelope budgeting with typographic care.
+A lightweight, privacy-first budgeting PWA for tracking accounts and unified expense envelopes. Data stays on-device (localStorage) with optional GitHub Gist sync for cross-device access. No bank links, no AI, no subscriptions - just envelope budgeting with typographic care.
 
 ## Brand Personality
 

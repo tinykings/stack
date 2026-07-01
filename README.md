@@ -11,18 +11,12 @@
 
 ## Features
 
-- **Accounts** — Track assets (checking, savings) and liabilities (credit cards, loans). Net worth is computed automatically.
-- **Budget** — Recurring envelope-style budget items. Set a needed amount, track spending against it, and see a progress bar. Recurrence options: every month or every paycheck.
-- **Bills** — Fixed expenses tied to a day of the month, sorted by upcoming due date.
-- **Goals** — Savings targets with a target date, sorted chronologically.
-- **Available** — A running total showing `(assets − liabilities) − budget − bills − goals`, animated on change.
-- **Spending** — Log individual purchases against any budget/bill/goal item. Optionally charge to an account simultaneously to keep balances accurate.
-- **Transfers** — Move funds between any two accounts or envelope items.
-- **History** — Last 10 actions shown in the footer and viewable in a history modal.
-- **Auto Fill** — Paycheck-aware allocation tool (⚡ in the footer). Set your last check date and pay frequency (weekly, biweekly, monthly); the date is used to calculate how many checks occur before each item's due date. Opens a modal showing:
-  - *Due by next paycheck* — bills whose due day falls before the next paycheck, goals with a target date before the next paycheck, and budget items (every-check items always included; every-month items included if not yet fully funded). Items are checked and funded in priority order (every-check budget → dated items by due date → every-month budget) against your current available balance. Items you can't afford are shown unchecked in red.
-  - *Recommendations* — future bills and goals beyond the next paycheck, sorted by soonest due date, with a suggested per-check contribution calculated as `remaining ÷ paychecks until due`. Recommendations share the available funds left over after due items, with the closest item getting priority. A **Check All / Uncheck All** toggle controls the whole section.
-  - Confirming fills only checked items by topping each one up to its needed amount.
+- **Accounts** - Track assets (checking, savings) and liabilities (credit cards, loans). Net worth is computed automatically.
+- **Expenses** - Track envelope-style expense items with a current amount, needed amount, due date, optional monthly recurrence, spending history, and progress bar.
+- **Available** - A running total showing `(assets - liabilities) - remaining expenses`, animated on change.
+- **Spending** - Log individual purchases against any expense item. Optionally charge the purchase to an account at the same time to keep balances accurate.
+- **History** - Last 10 add, edit, spend, and autofill actions are shown in the History list.
+- **Auto Fill** - Paycheck-aware allocation tool in the footer. Set a start date and pay frequency (weekly, biweekly, monthly), then Stack suggests per-check allocations for expenses that are not yet fully funded. Items are prioritized by upcoming due date and checked only when they fit within the current available balance.
 
 ## Data & Sync
 
