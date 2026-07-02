@@ -2,6 +2,8 @@
 const STORAGE_KEY = 'budget_data_v1';
 const GIST_ID_KEY = 'budget_gist_id';
 const GIST_TOKEN_KEY = 'budget_gist_token';
+const GIST_BASE_REVISION_KEY = 'budget_gist_base_revision';
+const CLIENT_ID_KEY = 'budget_client_id';
 const AUTOFILL_FREQ_KEY = 'autofill_frequency';
 const AUTOFILL_START_DATE_KEY = 'autofill_start_date';
 
@@ -26,6 +28,45 @@ function uid(){
     return crypto.randomUUID();
   }
   return Math.random().toString(36).slice(2,9);
+}
+
+function getClientId(){
+  let clientId = localStorage.getItem(CLIENT_ID_KEY);
+  if (!clientId) {
+    clientId = uid();
+    localStorage.setItem(CLIENT_ID_KEY, clientId);
+  }
+  return clientId;
+}
+
+function ensureSyncMetadata(){
+  if (!state._sync || typeof state._sync !== 'object') state._sync = {};
+  if (!state._sync.clientId) state._sync.clientId = getClientId();
+  return state._sync;
+}
+
+function setBaseRevision(revision){
+  if (revision) localStorage.setItem(GIST_BASE_REVISION_KEY, revision);
+  else localStorage.removeItem(GIST_BASE_REVISION_KEY);
+}
+
+function getBaseRevision(){
+  return localStorage.getItem(GIST_BASE_REVISION_KEY) || '';
+}
+
+function prepareStateForGistSave(){
+  const sync = ensureSyncMetadata();
+  sync.revision = uid();
+  sync.savedAt = new Date().toISOString();
+  sync.clientId = getClientId();
+  state._lastModified = Date.now();
+  return sync.revision;
+}
+
+function getRemoteRevision(gistData, parsedState){
+  return (gistData && gistData.history && gistData.history[0] && gistData.history[0].version)
+    || (parsedState && parsedState._sync && parsedState._sync.revision)
+    || (parsedState && parsedState._lastModified ? String(parsedState._lastModified) : '');
 }
 
 function recordAction(action){
@@ -106,6 +147,9 @@ function loadLocal(){
 }
 function saveLocal(){
   state._lastModified = Date.now();
+  persistLocal();
+}
+function persistLocal(){
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
 }
 
@@ -894,52 +938,105 @@ function setGistLoading(loading) {
   document.querySelector('.gist-controls')?.classList.toggle('gist-loading', loading);
 }
 
+async function fetchGistState(gistId, token){
+  const headers = token ? { 'Authorization': `token ${token}`, 'Accept': 'application/vnd.github+json' } : { 'Accept': 'application/vnd.github+json' };
+  const res = await fetch(`https://api.github.com/gists/${gistId}?t=${Date.now()}`, {
+    headers,
+    cache: 'no-store'
+  });
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data.message || res.statusText || 'Gist request failed');
+  }
+  const file = data.files['budget-data.json'] || Object.values(data.files)[0];
+  if (!file) {
+    throw new Error('No files found in gist');
+  }
+  const parsed = JSON.parse(file.content);
+  return { data, parsed, revision: getRemoteRevision(data, parsed) };
+}
+
 async function saveToGist(createNew=false, silent=false){
   const tokenEl = $('gistToken'); const gidEl = $('gistId');
   const token = tokenEl ? tokenEl.value.trim() : (localStorage.getItem(GIST_TOKEN_KEY) || '');
   const gistId = gidEl ? gidEl.value.trim() : (localStorage.getItem(GIST_ID_KEY) || '');
   if(!token){ if(!silent) setStatus('Missing GitHub token', true); return; }
   if(!gistId && !createNew){ if(!silent) setStatus('Missing Gist ID', true); return; }
-  const payload = {"budget-data.json": {content: JSON.stringify(state, null, 2)}};
   const headers = { 'Authorization': `token ${token}`, 'Accept': 'application/vnd.github+json' };
   if(!silent) setGistLoading(true);
   if(!silent) setStatus('Saving to gist');
   try{
     let res;
     if(createNew || !gistId){
+      const newRevision = prepareStateForGistSave();
+      const payload = {"budget-data.json": {content: JSON.stringify(state, null, 2)}};
       res = await fetch('https://api.github.com/gists', {
         method: 'POST', headers: {...headers, 'Content-Type':'application/json'},
         body: JSON.stringify({files: payload, public: false, description: 'Budget data'})
       });
+      const data = await res.json();
+      if(res.ok){
+        const id = data.id;
+        if(gidEl) gidEl.value = id; localStorage.setItem(GIST_ID_KEY, id); localStorage.setItem(GIST_TOKEN_KEY, token);
+        setBaseRevision(getRemoteRevision(data, state) || newRevision);
+        persistLocal();
+        if(!silent) setStatus('Saved to gist: ' + id);
+        return true;
+      }
+      if(!silent) setStatus('Gist save failed: ' + (data.message||res.statusText), true);
+      console.error('Gist error', data);
+      return false;
     } else {
+      let remote;
+      try {
+        remote = await fetchGistState(gistId, token);
+      } catch (err) {
+        if(!silent) setStatus('Gist save failed: ' + err.message, true);
+        else setStatus('Autosave failed: could not check latest Gist', true);
+        console.error(err);
+        return false;
+      }
+
+      const baseRevision = getBaseRevision();
+      if (!baseRevision || (remote.revision && remote.revision !== baseRevision)) {
+        setStatus('Remote data changed. Pull latest before saving.', true);
+        return false;
+      }
+
+      const newRevision = prepareStateForGistSave();
+      const payload = {"budget-data.json": {content: JSON.stringify(state, null, 2)}};
       res = await fetch(`https://api.github.com/gists/${gistId}`, {
         method: 'PATCH', headers: {...headers, 'Content-Type':'application/json'},
         body: JSON.stringify({files: payload})
       });
-    }
-    const data = await res.json();
-    if(res.ok){
-      const id = data.id;
-      if(gidEl) gidEl.value = id; localStorage.setItem(GIST_ID_KEY, id); localStorage.setItem(GIST_TOKEN_KEY, token);
-      if(!silent) setStatus('Saved to gist: ' + id);
-    } else {
+      const data = await res.json();
+      if(res.ok){
+        const id = data.id;
+        if(gidEl) gidEl.value = id; localStorage.setItem(GIST_ID_KEY, id); localStorage.setItem(GIST_TOKEN_KEY, token);
+        setBaseRevision(getRemoteRevision(data, state) || newRevision);
+        persistLocal();
+        if(!silent) setStatus('Saved to gist: ' + id);
+        return true;
+      }
       if(!silent) setStatus('Gist save failed: ' + (data.message||res.statusText), true);
       console.error('Gist error', data);
+      return false;
     }
   }catch(err){ if(!silent) setStatus('Network error saving gist', true); console.error(err); }
   finally { if(!silent) setGistLoading(false); }
+  return false;
 }
 
 async function autosaveToGist(){
   // Don't save while a load is in progress
-  if (isLoadingFromGist) return;
+  if (isLoadingFromGist) return false;
   const token = ($('gistToken') && $('gistToken').value.trim()) || localStorage.getItem(GIST_TOKEN_KEY);
   const gid = ($('gistId') && $('gistId').value.trim()) || localStorage.getItem(GIST_ID_KEY);
-  if(!token || !gid) return; // silently skip
+  if(!token || !gid) return false; // silently skip
   // Set flag to prevent auto-refresh during save
   isSavingToGist = true;
   try {
-    await saveToGist(false, true);
+    return await saveToGist(false, true);
   } finally {
     isSavingToGist = false;
   }
@@ -970,20 +1067,10 @@ async function loadFromGist(silent = false, force = false){
 
     if(!silent) setGistLoading(true);
     if(!silent) setStatus('Loading from gist');
-    const headers = token ? { 'Authorization': `token ${token}`, 'Accept': 'application/vnd.github+json' } : { 'Accept': 'application/vnd.github+json' };
-    // Add timestamp and cache: 'no-store' to bypass browser/GitHub caching
-    const res = await fetch(`https://api.github.com/gists/${gistId}?t=${Date.now()}`, { 
-      headers,
-      cache: 'no-store'
-    });
-    const data = await res.json();
-    if(res.ok){
-      // find file named budget-data.json
-      const file = data.files['budget-data.json'] || Object.values(data.files)[0];
-      if(!file){ setStatus('No files found in gist', true); return; }
-      const content = file.content;
+    try{
+      const remote = await fetchGistState(gistId, token);
       try{
-        const parsed = JSON.parse(content);
+        const parsed = remote.parsed;
         // Don't overwrite if local state was modified more recently (unless forced)
         if (!force && state._lastModified && parsed._lastModified && parsed._lastModified < state._lastModified) {
           return;
@@ -991,6 +1078,8 @@ async function loadFromGist(silent = false, force = false){
         state = parsed;
         normalizeStateShape();
         migrateToUnifiedItems(false);
+        const sync = ensureSyncMetadata();
+        if (!sync.revision) sync.revision = uid();
         // Sync paySchedule from state to localStorage
         if (state.paySchedule) {
           if (state.paySchedule.frequency) {
@@ -1000,12 +1089,13 @@ async function loadFromGist(silent = false, force = false){
             localStorage.setItem(AUTOFILL_START_DATE_KEY, state.paySchedule.startDate);
           }
         }
-        saveLocal(); render();
+        setBaseRevision(remote.revision || sync.revision);
+        persistLocal(); render();
         localStorage.setItem(GIST_ID_KEY, gistId); if(token) localStorage.setItem(GIST_TOKEN_KEY, token);
         if(!silent) setStatus('Loaded data from gist');
       }catch(e){ setStatus('Invalid JSON in gist file', true); }
-    } else {
-      setStatus('Gist load failed: ' + (data.message||res.statusText), true);
+    } catch(err) {
+      setStatus('Gist load failed: ' + err.message, true);
     }
   }catch(err){ setStatus('Network error loading gist', true); console.error(err); }
   finally {
@@ -1663,8 +1753,8 @@ function showAutofillModal() {
     render();
     
     if (typeof setStatus === 'function') setStatus('Allocating funds...');
-    await autosaveToGist();
-    if (typeof setStatus === 'function') setStatus('Funds allocated and saved');
+    const saved = await autosaveToGist();
+    if (typeof setStatus === 'function' && saved) setStatus('Funds allocated and saved');
     
     cleanup();
   });
