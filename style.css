@@ -892,6 +892,11 @@ body.onboarding .footer-bar {
   color: var(--amber);
 }
 
+.icon-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 .icon-btn::after {
   content: attr(data-tip);
   position: absolute;
@@ -1478,7 +1483,8 @@ body.onboarding .footer-bar {
 
 /* ---- Gist Loading State ---- */
 
-#gist-save-btn:disabled {
+#gist-save-btn:disabled,
+#gist-load-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
   display: inline-flex;
@@ -1487,7 +1493,8 @@ body.onboarding .footer-bar {
   gap: 6px;
 }
 
-#gist-save-btn:disabled::before {
+#gist-save-btn:disabled::before,
+#gist-load-btn:disabled::before {
   content: '';
   width: 14px;
   height: 14px;

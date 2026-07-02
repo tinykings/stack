@@ -751,7 +751,28 @@ function setupUI(){
     landingSettingsBtn.addEventListener('click', openGistModal);
   }
 
+  const gistRefreshBtn = $('gist-refresh-btn');
+  if (gistRefreshBtn) {
+    gistRefreshBtn.addEventListener('click', async () => {
+      const token = localStorage.getItem(GIST_TOKEN_KEY);
+      const gistId = localStorage.getItem(GIST_ID_KEY);
+      if (!token || !gistId) {
+        openGistModal();
+        setStatus('Enter Gist ID and token', true);
+        return;
+      }
+      await loadFromGist(false, true);
+    });
+  }
+
   const gistSaveBtn = $('gist-save-btn');
+  const gistLoadBtn = $('gist-load-btn');
+  if (gistLoadBtn) {
+    gistLoadBtn.addEventListener('click', async () => {
+      await loadFromGist(false, true);
+    });
+  }
+
   if (gistSaveBtn) {
     gistSaveBtn.addEventListener('click', async () => {
       const token = ($('gistToken')?.value.trim() || localStorage.getItem(GIST_TOKEN_KEY) || '');
@@ -866,8 +887,10 @@ function setupUI(){
 
 // Gist API
 function setGistLoading(loading) {
-  const btn = document.getElementById('gist-save-btn');
-  if (btn) btn.disabled = loading;
+  ['gist-save-btn', 'gist-load-btn', 'gist-refresh-btn'].forEach(id => {
+    const btn = document.getElementById(id);
+    if (btn) btn.disabled = loading;
+  });
   document.querySelector('.gist-controls')?.classList.toggle('gist-loading', loading);
 }
 
@@ -1649,7 +1672,7 @@ function showAutofillModal() {
 
 // Auto-refresh when app becomes visible (e.g., returning from background)
 function setupAutoRefresh() {
-  let lastRefreshTime = Date.now();
+  let lastRefreshTime = 0;
   const MIN_REFRESH_INTERVAL = 5000; // Don't refresh more than once per 5 seconds
 
   async function autoRefreshFromGist() {
@@ -1680,10 +1703,8 @@ function setupAutoRefresh() {
   });
 
   // For iOS PWAs: pageshow event fires when returning to a cached page
-  window.addEventListener('pageshow', (event) => {
-    if (event.persisted) {
-      autoRefreshFromGist();
-    }
+  window.addEventListener('pageshow', () => {
+    autoRefreshFromGist();
   });
 }
 
